@@ -1284,7 +1284,16 @@ const PROVIDER_BRAND_RULES = [
   [/magpie/, "magpie"],
 ];
 
+let brandOverrides = {};
+export function setProviderBrandOverrides(map) {
+  brandOverrides = map && typeof map === "object" ? map : {};
+}
+
 export function resolveProviderBrandKey(providerId, providerName, modelId, modelName) {
+  const pid = String(providerId || "").toLowerCase();
+  const ovSlug = pid.startsWith("magpie-group:") ? pid.slice(13) : pid;
+  const ovIcon = brandOverrides[ovSlug]?.icon;
+  if (ovIcon && !modelId && PROVIDER_BRAND_LOGOS[ovIcon]) return ovIcon;
   const modelText = [modelId, modelName]
     .filter((v) => typeof v === "string" && v.length > 0)
     .join(" ")

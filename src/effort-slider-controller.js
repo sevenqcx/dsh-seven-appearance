@@ -1,3 +1,4 @@
+import { parseModelGroupConfig } from './settings-store.js';
 // Obsidian Prism Unified Model Picker + Cut-Crystal Reasoning Effort Deck
 // Occupies DSH's `conversation.input.model` slot at priority -1 (shadowing native ModelSelect
 // while Obsidian Prism & the picker feature are enabled, and yielding back cleanly when disabled).
@@ -9,6 +10,7 @@ import {
   getProviderBrandSpec,
   renderProviderLogoSvg,
   resolveProviderBrandKey,
+  setProviderBrandOverrides,
 } from './provider-logos.js';
 
 const OP_MP_FAVORITES_KEY = 'dsh-obsidian-prism:model-favorites:v1';
@@ -584,8 +586,15 @@ function formatMagpieSlugFallback(slug) {
     .join(' ');
 }
 
-function resolveMagpieGroupMeta(slug, zh) {
+function resolveMagpieGroupMeta(slug, zh, overrides = null) {
   const meta = MAGPIE_GROUP_META[slug];
+  const ov = overrides && overrides[slug];
+  if (ov) {
+    const base = meta ? (zh ? meta.zh : meta.en) : formatMagpieSlugFallback(slug);
+    const name = ov.name || base;
+    const order = typeof ov.order === 'number' ? ov.order : (meta ? meta.order : 1000);
+    return { name, tooltip: ov.name || (meta ? (zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en)) : name), order };
+  }
   if (meta) {
     const name = zh ? meta.zh : meta.en;
     const tooltip = zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en);
@@ -601,6 +610,7 @@ export function buildModelPickerCatalog(rawGroups, opts = null) {
   const favoriteKeys = opts?.favoriteKeys instanceof Set ? opts.favoriteKeys : new Set();
   const routableKnown = Boolean(opts?.routableKnown);
   const routableSet = opts?.routableSet instanceof Set ? opts.routableSet : new Set();
+  const groupOverrides = opts?.groupOverrides && typeof opts.groupOverrides === 'object' ? opts.groupOverrides : null;
 
   const beforeMagpie = [];
   const afterMagpie = [];
@@ -661,7 +671,7 @@ export function buildModelPickerCatalog(rawGroups, opts = null) {
       let isVirtual;
 
       if (slug) {
-        const meta = resolveMagpieGroupMeta(slug, zh);
+        const meta = resolveMagpieGroupMeta(slug, zh, groupOverrides);
         bucketKey = `magpie-group:${slug}`;
         bucketName = meta.name;
         bucketTooltip = meta.tooltip;
@@ -1451,9 +1461,15 @@ export function createEffortSliderSlotComponent({ React, createPortal, getCrysta
     const routableKnown = catalog.status === 'ready';
     const routableSet = useMemo(() => new Set(catalog.providers), [catalog.providers]);
 
+    const groupConfigText = settings?.modelGroupConfig || '';
+    const groupOverrides = useMemo(() => {
+      const ov = parseModelGroupConfig(groupConfigText);
+      setProviderBrandOverrides(ov);
+      return ov;
+    }, [groupConfigText]);
     const { displayGroups, allRows } = useMemo(
-      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet }),
-      [groups, zh, favoriteKeys, routableKnown, routableSet],
+      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet, groupOverrides }),
+      [groups, zh, favoriteKeys, routableKnown, routableSet, groupOverrides],
     );
 
     const rowByKey = useMemo(() => new Map(allRows.map((r) => [r.key, r])), [allRows]);
