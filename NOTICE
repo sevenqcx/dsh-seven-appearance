@@ -1,0 +1,45 @@
+dsh-obsidian-prism — Obsidian Prism (黑曜棱镜) Port for DeepSeek Harness
+Ported and adapted for DeepSeek Harness on 2026-11-26.
+
+================================================================================
+UPSTREAM ATTRIBUTION & GPL-3.0 SECTION 7 NOTICE
+================================================================================
+
+This project is a derivative port licensed under the GNU General Public License
+v3.0 (GPL-3.0-only), adapted from:
+
+  - Project: Obsidian Prism (黑曜棱镜)
+  - Author:  RMvdesi
+  - Source:  https://github.com/RMvdesi/obsidian-prism
+  - License: GNU General Public License v3.0 (GPL-3.0-only)
+
+Modifications made for DeepSeek Harness (2026-11-26):
+  - Re-architected visual tokens, palettes (Obsidian, Warm Charcoal, Crystal,
+    Alabaster), accent tones, corner styles, and code typography to map onto
+    DeepSeek Harness native `--dsw-alias-*` / `--dsw-specific-*` CSS variables
+    and `data-ds-dark-theme` theme state.
+  - Adapted motion & glow effects (stream text fade-in via CSS Custom Highlight
+    API, composer prism aura, conversation ambient aura, smooth caret) to DeepSeek
+    Harness DOM hooks (`[data-composer-card]`, `[data-composer-input]`,
+    `[data-conversation-region]`, `[data-chat-running]`, `[data-streaming]`).
+  - Integrated upstream `vendor/crystal-prism-core.js` (WebGL2 Voronoi
+    cut-crystal optics with 2D fallback) into the model-menu reasoning effort
+    slider with reactive starfield, light track, and clickable level labels.
+  - Integrated `vendor/dual-mascot-rig.js` (pixel mascot stage & micro-ecology)
+    onto DeepSeek Harness composer cards.
+  - Built DeepSeek Harness host HTTP endpoints for local custom image/video
+    wallpaper storage with HTTP Range streaming and durable JSON settings sync.
+  - Adapted workbench code-block folding, sticky code headers, and conversation
+    turn outline navigation to DeepSeek Harness DOM anchors.
+  - Built native DeepSeek Harness Settings section & live Appearance Drawer UI.
+
+Upstream absorbed open-source inspirations and components (preserved in
+`THIRD_PARTY_NOTICES.md`):
+  - 0DNANCY/agy-claude-style (MIT)
+  - Nwflower/dsh-claude-style
+  - claudenoshujin/claude-web (Mascot Pile & Micro-Ecology Inspiration)
+  - wp3171216237/dsh-TUI (Deepy DeepSeek pixel whale design & water-spout, MIT)
+
+NON-AFFILIATION DISCLAIMER:
+This plugin is an independent community port and is not affiliated with or
+endorsed by RMvdesi, DeepSeek, or Google LLC.

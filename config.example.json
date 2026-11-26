@@ -1,0 +1,16 @@
+{
+  "schema": "dsh-obsidian-prism-settings",
+  "version": 1,
+  "settings": {
+    "enabled": true,
+    "uiLanguage": "auto",
+    "themeMode": "auto",
+    "darkPreset": "obsidian",
+    "lightPreset": "crystal",
+    "accent": "follow",
+    "homeRipple": true,
+    "convRipple": "off",
+    "selectionAskEnabled": true,
+    "turnOutlineEnabled": true
+  }
+}

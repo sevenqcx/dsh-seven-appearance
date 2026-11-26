@@ -1,0 +1,72 @@
+{
+  "name": "dsh-obsidian-prism",
+  "version": "0.4.0",
+  "private": true,
+  "type": "module",
+  "description": "Obsidian Prism (黑曜棱镜) visual & productivity suite for DeepSeek Harness: 4 curated themes, dynamic composer prism rim & status vial, WebGL2 ASCII matrix ripple, Smoked Obsidian facets, selection quick-ask bar, stream choreography, searchable/collapsible outline, pixel mascots, local wallpapers, scene presets & live ZH/EN Studio.",
+  "license": "GPL-3.0-only",
+  "keywords": [
+    "deepseek",
+    "harness",
+    "dsh",
+    "dsh-plugin",
+    "theme",
+    "obsidian-prism",
+    "mascot",
+    "wallpaper"
+  ],
+  "engines": {
+    "dsh": ">=0.2.0"
+  },
+  "icon": "icon.svg",
+  "scripts": {
+    "build": "node scripts/build-client.mjs",
+    "check": "node --check index.js && node --check client.js",
+    "test": "node scripts/build-client.mjs && node --test test/*.test.js"
+  },
+  "exports": {
+    ".": "./index.js",
+    "./client": "./client.js",
+    "./locale/*.json": "./locale/*.json",
+    "./icon": "./icon.svg",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "LICENSE",
+    "NOTICE",
+    "THIRD_PARTY_NOTICES.md",
+    "README.md",
+    "README.en.md",
+    "CHANGELOG.md",
+    "config.example.json",
+    "docs/screenshots/*",
+    "index.js",
+    "client.js",
+    "cordis.patch.yml",
+    "icon.svg",
+    "locale/*.json",
+    "src/*.js",
+    "vendor/dual-mascot-rig.js",
+    "vendor/ripple-core.js",
+    "vendor/crystal-prism-core.js",
+    "scripts/build-client.mjs"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    },
+    "client": {
+      "platform": "web",
+      "immediately": true,
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-renderer",
+        "@deepseek-ai/dsh-client-ui-layout",
+        "@deepseek-ai/dsh-client-ui-workspace",
+        "@deepseek-ai/dsh-client-ui-conversation",
+        "@deepseek-ai/dsh-client-ui-theme",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ]
+    }
+  }
+}
