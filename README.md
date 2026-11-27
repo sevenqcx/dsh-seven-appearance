@@ -1,4 +1,30 @@
-# Seven 外观 (`dsh-seven-appearance`)
+<div align="center">
+
+# Seven 外观
+
+**让 DeepSeek Harness 更好看，也更好用**
+
+[![npm](https://img.shields.io/npm/v/dsh-seven-appearance?color=4f7cff&label=npm)](https://www.npmjs.com/package/dsh-seven-appearance)
+[![release](https://img.shields.io/github/v/release/sevenqcx/dsh-seven-appearance?color=a46bff)](https://github.com/sevenqcx/dsh-seven-appearance/releases)
+[![license](https://img.shields.io/badge/license-GPL--3.0-ff7ab6)](LICENSE)
+
+<img src="docs/promo/seven-appearance-promo.gif" alt="Seven 外观宣传动图" width="800">
+
+<sub>10 秒速览 · <a href="docs/promo/seven-appearance-promo.mp4">高清 MP4</a> · <a href="README.en.md">English</a></sub>
+
+| 🎨 四套深浅主题 | ✨ 棱镜边光 | 💡 下一步提示词推荐 | 🧭 统一模型选择器 | 🐳 像素伙伴 |
+| :---: | :---: | :---: | :---: | :---: |
+| 一键切换配色 | 贴合输入框轮廓 | `Tab` 填入 · `⇧Tab` 换一条 | `⌘⇧M` 搜索收藏 | 拖拽互动 |
+
+```bash
+npm i dsh-seven-appearance
+```
+
+</div>
+
+---
+
+## 简介 (`dsh-seven-appearance`)
 
 基于 [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)（GPL-3.0-only）深度移植与定制的 DeepSeek Harness 外观与效率增强插件，涵盖主题配色、棱镜光效、像素伙伴舞台、本地动静态壁纸、统一模型与推理选择器、下一步提示词推荐、划词就地解释及会话工作台增强。
 
