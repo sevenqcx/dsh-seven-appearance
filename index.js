@@ -282,6 +282,13 @@ function pickFastDefaultModel(models, envPreferred) {
   return models[0]?.id || envPreferred || 'group/fastest-first';
 }
 
+function buildSuggestRequestExtra(model) {
+  if (/doubao-seed-2/i.test(String(model || ''))) {
+    return { reasoning_effort: 'minimal' };
+  }
+  return {};
+}
+
 export function createHostHandlers(baseDir) {
   const dirs = getDataDirs(baseDir);
   const MODEL_CACHE_TTL_MS = 30_000;
@@ -394,12 +401,37 @@ export function createHostHandlers(baseDir) {
           }
 
           const zh = body?.zh !== false;
+          const handoff = body?.handoff === true;
           const exclude = Array.isArray(body?.exclude)
             ? body.exclude.map((x) => String(x || '').trim()).filter(Boolean).slice(-5)
             : [];
-          const sys = zh
-            ? '你是输入建议助手。根据对话预测用户下一句最可能发的话。只输出这一句中文，不超过35字，不加引号和解释。'
-            : "Predict the user's most likely next message. Output only that one sentence, under 20 words, no quotes.";
+          const sys = [
+            ...(zh
+              ? [
+                '你要预测用户（项目负责人）下一条会发的话，以他本人第一人称口吻，只输出这一句。',
+                '他是谁：项目负责人，不是程序员。他不写代码，关心的是效果、进度、花多少钱和有什么风险；遇到不懂的地方会直接问「这是什么意思」「为什么要这样」「对我有什么影响」「要花多少钱」「能不能再快点」。',
+                '他的说话风格：极简、直接、不客套，常见是 2～15 字的指令或追问，例如「继续」「已经弄好了」「直接改」「选第一个」「还是不行」。',
+                '硬性要求：',
+                '1. 只输出这一句，不加引号、不加解释、不加序号；',
+                '2. 不要出现「好的」「我这就」「麻烦你」「辛苦了」「你等我」这类客套话和客服腔；',
+                '3. 不要复述或转述助手刚说过的话；',
+                '4. 说他会说的话：不要写函数名、报错原文、打包入口这类只有程序员才会说的词，优先用他能听懂的日常说法；',
+                '5. 拿不准他要问什么时，优先猜他最常用的那一类：追问「这是什么意思／为什么／影响／费用／进度」；',
+                '6. 必须贴住这一轮的具体话题，不同话题不能给出同一句；',
+                '7. 长度不超过 20 个汉字。',
+              ]
+              : [
+                "Predict the user's next message in his own first-person voice; output only that line.",
+                'Who he is: a project owner, not a programmer. He cares about results, progress, cost and risk, and asks "what does that mean", "why", "what does it affect", "how much", "can it be faster".',
+                'Style: extremely terse and direct, no pleasantries — like "continue", "done, go on", "just fix it", "option 1".',
+                'Rules: one line only, no quotes, no explanation, no filler such as "sure" / "I will" / "please"; do not restate the assistant; avoid developer jargon he would not say; when unsure, prefer his most common kind of follow-up: meaning, reason, impact, cost or progress; stay on this turn\'s topic; under 15 words.',
+              ]),
+            ...(handoff
+              ? [zh
+                ? '本轮补充：助手把动作交回给了他（点按钮／授权／粘贴验证码／扫码／刷新）。按「他早就做完了」来写，写做完之后要推进的事，不要让他去做这一步。'
+                : 'Extra: the assistant handed an action back to him. Assume he already finished it and write what he says right after, not a request to do it.']
+              : []),
+          ].join('\n');
           let promptContent = user ? `用户：${user}\n\n助手：${assistant}` : `助手：${assistant}`;
           if (exclude.length > 0) {
             promptContent += zh
@@ -413,6 +445,7 @@ export function createHostHandlers(baseDir) {
               model,
               max_tokens: 72,
               temperature: exclude.length > 0 ? 0.75 : 0.35,
+              ...buildSuggestRequestExtra(model),
               messages: [
                 { role: 'system', content: sys },
                 { role: 'user', content: promptContent },
@@ -424,7 +457,11 @@ export function createHostHandlers(baseDir) {
           const j = await res.json();
           const raw = String(j?.choices?.[0]?.message?.content || '').trim();
           const firstLine = raw.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || '';
-          const text = firstLine.replace(/^["“「'‘]+|["”」'’]+$/g, '').trim().slice(0, 120);
+          let text = firstLine.replace(/^["“「'‘]+|["”」'’]+$/g, '').trim().slice(0, 120);
+          // 交回动作的场景：输出里没有「已完成」的意思（还是在让他去做），换成「已做完」的写法
+          if (handoff && !/(已经|好了|完了|弄好|完成|搞定|done)/i.test(text)) {
+            text = zh ? '已经弄好了，继续' : 'Done, continue';
+          }
           return Response.json({ ok: Boolean(text), text });
         } catch (error) {
           return Response.json({ ok: false, error: error?.message || 'suggest failed' });

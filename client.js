@@ -16242,6 +16242,11 @@ function registerSideQuestion(ctx, React, store) {
           throw new Error('Sidebar draft could not be initialized');
         }
         initialized.add(reference);
+        // 草稿填好后把焦点送进侧栏输入框，按一次回车就能发送
+        setTimeout(() => {
+          const el = document.querySelector('.op-side-question [data-composer-input]');
+          el?.focus?.();
+        }, 80);
       }).catch(() => { if (active) setFailed(true); });
       return () => { active = false; };
     }, [reference, prompt]);
@@ -16350,109 +16355,135 @@ function dedupeSuggestions(items) {
   return out;
 }
 
+// 助手把动作交回给用户（点按钮 / 授权 / 粘贴验证码 / 扫码 / 刷新）：这种情况建议要写「他早做完了」
+function isWaitingOnUser(text) {
+  return /(需要你|请你|等你|你来点|你去点|你点一下|你粘贴|复制到剪贴板|验证码|授权页|授权后|打开.{0,6}链接后|扫码|刷新页面后)/.test(
+    String(text || '').slice(-260),
+  );
+}
+
 function buildLocalSuggestions({ user = '', assistant = '', zh = true } = {}) {
   const body = String(assistant || '').trim();
   const tail = body.slice(-260);
   const full = `${String(user || '')}\n${body}`;
 
+  const waitingOnUser = isWaitingOnUser(tail);
+
   if (!zh) {
+    if (waitingOnUser) {
+      return dedupeSuggestions([
+        'Done, continue',
+        'Already authorized, go ahead',
+        'Done, next step',
+        'Skip it, do the rest',
+      ]);
+    }
     if (/(option\s*[1a]|approach\s*[1a]|which\s+(one|option|approach)|prefer\s+option|1\.\s+.+\n\s*2\.)/i.test(body)) {
       return dedupeSuggestions([
-        'Go with your recommended option and implement it',
-        'Let us go with Option 1',
-        'Let us go with Option 2',
-        'Explain the tradeoffs between the options briefly',
+        'Go with your recommendation',
+        'Option 1',
+        'Option 2',
+        'What is the real difference',
       ]);
     }
     if (/(refresh|reload|test|verify|passed|built|deployed|fixed|updated|ready)/i.test(tail)) {
       return dedupeSuggestions([
-        'Looks good, continue to the next step',
-        'Let me test it and adjust a few details',
-        'Double-check for any edge cases we missed',
-        'Summarize the changes for commit',
+        'Tested, continue',
+        'Looks fine, go on',
+        'Still broken',
+        'Commit it',
       ]);
     }
     if (/(error|failed|blocked|bug|issue|root cause|exception)/i.test(tail)) {
       return dedupeSuggestions([
-        'Fix it with the cleanest approach',
-        'Dig deeper into the root cause first',
-        'Is there a simpler workaround?',
-        'Check if the same issue exists elsewhere',
+        'Just fix it',
+        'Find the root cause',
+        'Is there something simpler',
+        'Check the same spots too',
       ]);
     }
     if (/\?\s*$/.test(tail) || /(would you like|want me to|should i|shall we|confirm)/i.test(tail)) {
       return dedupeSuggestions([
-        'Yes, go ahead',
-        'Sounds good, do it as you suggested',
-        'Hold on, I want to tweak one detail first',
-        'Skip that for now and move on',
+        'Do it',
+        'Go with yours',
+        'Wait, one more thing',
+        'Skip this one',
       ]);
     }
     return dedupeSuggestions([
-      'Go ahead and implement this',
-      'Continue to the next step',
-      'Explain this in a bit more detail',
-      'Verify and test the result',
+      'Continue',
+      'Just fix it',
+      'Test it for me',
+      'Be more specific',
     ]);
   }
 
-  // Chinese context-aware instant suggestions
+  // 中文：用户说话极简、直接、不客套
+  if (waitingOnUser) {
+    return dedupeSuggestions([
+      '已经弄好了，继续',
+      '授权完了，继续',
+      '好了，下一步',
+      '这个跳过，先做别的',
+    ]);
+  }
+
   const hasChoices =
     /(方案\s*[1一A]|第一种|第二种|①[\s\S]{1,120}②|哪一种|按哪种|选哪种|二选一|两种改法|两种做法)/.test(body) ||
     /(^|\n)\s*1[.、]\s*[\s\S]{4,140}\n\s*2[.、]\s*/.test(body);
   if (hasChoices) {
     return dedupeSuggestions([
-      '按你推荐的方案直接做',
-      '选第一种，直接动手',
-      '选第二种吧',
-      '再补充说下这两种的区别',
+      '按你推荐的来',
+      '选第一个',
+      '选第二个',
+      '两者区别说下',
     ]);
   }
 
   const hasRefreshOrTest = /(刷新|重启|试一下|测一测|测完|验三件事|测试|验证通过|全部通过|已改好|改好了|上线|发布)/.test(tail);
   if (hasRefreshOrTest) {
     return dedupeSuggestions([
-      '试完了，帮我再微调一下',
-      '没问题，继续下一步',
-      '顺便检查下还有没有漏掉的地方',
-      '把这次改动整理一下提交吧',
+      '继续',
+      '可以',
+      '还是不行',
+      '提交吧',
     ]);
   }
 
   const hasProblem = /(报错|失败|卡住|原因|排查|冲突|异常|没生效|不显示|消失)/.test(tail);
   if (hasProblem) {
     return dedupeSuggestions([
-      '按最稳的办法直接修掉',
-      '顺便把同类地方也一并排查下',
-      '有没有更简单直接的做法？',
-      '继续往下查根因',
+      '直接修掉',
+      '这是什么意思',
+      '为什么会这样',
+      '同类也一起查',
     ]);
   }
 
   const asksConfirm = /[？?]\s*$/.test(tail) || /(要不要|是否|可以吗|需要我|你想按|你看|确认一下)/.test(tail);
   if (asksConfirm) {
     return dedupeSuggestions([
-      '可以，直接开始做',
-      '按你的建议来就行',
-      '等一下，我先补充个要求',
-      '这个先不动，接着看别的',
+      '可以，做吧',
+      '行',
+      '等一下，我补充',
+      '这个先不做',
     ]);
   }
 
   if (/(计划|方案|思路|对比|结论|建议)/.test(full)) {
     return dedupeSuggestions([
-      '直接按这个方案落地',
-      '有没有更省事的做法？',
-      '再讲具体一点',
-      '继续下一步',
+      '按这个做',
+      '有没有更省事的',
+      '要花多少钱',
+      '继续',
     ]);
   }
 
   return dedupeSuggestions([
-    '继续下一步',
-    '直接帮我改好',
-    '帮我测试验证一下',
-    '再详细说说',
+    '继续',
+    '这是什么意思',
+    '对我有什么影响',
+    '要花多少钱',
   ]);
 }
 
@@ -16760,7 +16791,8 @@ function createPromptSuggestController({ getSettings }) {
     });
   }
 
-  function showInstantLocal(ctx, sessionId, model, s) {
+  // 只有「纯本地」模式才用本地词库；配了模型就只走模型一条路，不做本地兜底再升级的两段式
+  function showCachedOrLocal(ctx, sessionId, model, s) {
     if (!ctx) return '';
     const sigKey = makeSigKey(sessionId, ctx.sig, model);
     if (dismissedSigs.has(sigKey)) return sigKey;
@@ -16771,6 +16803,7 @@ function createPromptSuggestController({ getSettings }) {
       renderGhost(existing.text, sigKey);
       return sigKey;
     }
+    if (!isLocalOnlyModel(model)) return sigKey;
     const pool = buildLocalSuggestions({ user: ctx.user, assistant: ctx.assistant, zh: isZhUi(s) });
     const first = pool[0] || '';
     if (!first) return sigKey;
@@ -16805,6 +16838,7 @@ function createPromptSuggestController({ getSettings }) {
         zh,
         ...(model ? { model } : {}),
         ...(exclude.length ? { exclude } : {}),
+        ...(isWaitingOnUser(assistant) ? { handoff: true } : {}),
       }),
     });
     const j = await res.json();
@@ -16824,7 +16858,7 @@ function createPromptSuggestController({ getSettings }) {
 
     if (isLocalOnlyModel(model)) {
       if (force) cycleLocalFallback(sigKey, ctx, s);
-      else showInstantLocal(ctx, sessionId, model, s);
+      else showCachedOrLocal(ctx, sessionId, model, s);
       return;
     }
 
@@ -16871,21 +16905,17 @@ function createPromptSuggestController({ getSettings }) {
           renderGhost(next, sigKey);
         }
       } else {
-        if (existing?.source !== 'model') addBoundedSet(failedSigs, sigKey);
-        if (force) {
-          cycleLocalFallback(sigKey, ctx, s);
-        } else if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
+        addBoundedSet(failedSigs, sigKey);
+        if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
           renderGhost(suggestion, sigKey);
         }
       }
     } catch {
       inflightSigs.delete(sigKey);
-      if (existing?.source !== 'model') addBoundedSet(failedSigs, sigKey);
+      addBoundedSet(failedSigs, sigKey);
       if (seq === reqSeq) {
         loadingNext = false;
-        if (force) {
-          cycleLocalFallback(sigKey, ctx, s);
-        } else if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
+        if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
           renderGhost(suggestion, sigKey);
         }
       }
@@ -17022,7 +17052,7 @@ function createPromptSuggestController({ getSettings }) {
     if (suggestion && currentSig && currentSig !== sigKey) {
       hide();
     }
-    showInstantLocal(ctx, sessionId, model, s);
+    showCachedOrLocal(ctx, sessionId, model, s);
     if (!isLocalOnlyModel(model) && !inflightSigs.has(sigKey) && !failedSigs.has(sigKey)) {
       request({ silent: true });
     }
@@ -17068,7 +17098,7 @@ function createPromptSuggestController({ getSettings }) {
     if (isLocalOnlyModel(model)) {
       const ctx = collectTurnContext(mainConv || document);
       if (ctx) {
-        showInstantLocal(ctx, sessionId, model, s);
+        showCachedOrLocal(ctx, sessionId, model, s);
       } else {
         pendingTimer = setTimeout(() => {
           pendingTimer = null;
@@ -17113,7 +17143,7 @@ function createPromptSuggestController({ getSettings }) {
     // Show local instant suggestion at 0ms while model prefetch resolves or settles
     const immediateCtx = collectTurnContext(mainConv || document);
     if (immediateCtx) {
-      showInstantLocal(immediateCtx, sessionId, model, s);
+      showCachedOrLocal(immediateCtx, sessionId, model, s);
     }
 
     if (match && match.inflight) {

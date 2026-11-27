@@ -277,6 +277,13 @@ test('prompt suggestions use the completed main turn and the selected Magpie mod
   assert.deepEqual(await (await route.fetch(req('codex/example'))).json(), { ok: true, text: '请继续' });
   assert.equal((await route.fetch(req('unknown/model'))).status, 400);
   assert.equal(completion.mock.calls.filter(({ arguments: [url] }) => url.endsWith('/chat/completions')).length, 1);
+
+  // 系统提示必须写清「用户口吻、不客套、默认已做完交回给他的动作」
+  const chatCall = completion.mock.calls.find(({ arguments: [url] }) => String(url).endsWith('/chat/completions'));
+  const sentSystem = JSON.parse(chatCall.arguments[1].body).messages[0].content;
+  assert.match(sentSystem, /不客套|客套/);
+  assert.match(sentSystem, /已经弄好了|早做完/);
+  assert.match(sentSystem, /20 个汉字/);
 });
 
 test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Tab, and accepts on Tab', async (t) => {
@@ -839,10 +846,31 @@ test('prompt suggestion shows 0ms local fallback with fast-model upgrade, suppor
   // 1. Local heuristic produces context-aware candidates in zh and en
   const choiceList = buildLocalSuggestions({ assistant: '有两种改法：1. 本地瞬出 2. 纯本地，选哪种？', zh: true });
   assert.ok(choiceList.length >= 4);
-  assert.match(choiceList[0], /推荐|方案|第一种/);
+  assert.match(choiceList[0], /推荐|选第一个/);
   const enList = buildLocalSuggestions({ assistant: 'All tests passed and ready to verify.', zh: false });
   assert.ok(enList.length >= 4);
-  assert.match(enList[0], /next step|Looks good/i);
+  assert.match(enList[0], /Tested|fine|continue/i);
+
+  // 跟着用户本人的说话习惯：短、直接、不客套（不能出现「好的／我这就／麻烦你」这类客服腔）
+  const handoff = buildLocalSuggestions({
+    assistant: '浏览器里已经打开授权页，验证码 0969-0567 也复制到剪贴板了，你在输入框粘贴后点继续。',
+    zh: true,
+  });
+  assert.match(handoff[0], /已经弄好了|授权完了|好了/);
+  assert.ok(handoff.every((s) => s.length <= 12), handoff.join(' / '));
+  const flat = buildLocalSuggestions({ assistant: '已经改好了，可以刷新试一下。', zh: true });
+  for (const pool of [handoff, flat, choiceList]) {
+    for (const s of pool) {
+      assert.doesNotMatch(s, /好的|我这就|我这就去|麻烦你|辛苦|你等我|稍等/);
+    }
+  }
+
+  // 他本人口吻：极短的『继续 / 可以 / 行』和「这是什么意思／有什么影响／要多少钱」优先
+  assert.ok(flat.includes('继续') && flat.includes('可以'), flat.join(' / '));
+  const plain = buildLocalSuggestions({ assistant: '这段代码的作用是给输入框加一圈光。', zh: true });
+  assert.ok(plain.some((s) => /这是什么意思|有什么影响|要花多少钱/.test(s)), plain.join(' / '));
+  const problem = buildLocalSuggestions({ assistant: '刚才那个报错还没修好，失败了。', zh: true });
+  assert.ok(problem.some((s) => /这是什么意思|为什么会这样|直接修掉/.test(s)), problem.join(' / '));
 
   // 2. Host route defaultModel prefers non-reasoning flash model over group/fastest-first
   const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
@@ -985,23 +1013,23 @@ test('prompt suggestion shows 0ms local fallback with fast-model upgrade, suppor
     localCtrl.dispose();
   }
 
-  // 3b. Hybrid mode: 0ms local immediately appears before model resolves, then smoothly upgrades
+  // 3b. Model mode is one model only: nothing shows before the model answers, no local placeholder to upgrade
   const hybridCtrl = createPromptSuggestController({
     getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, promptSuggestModel: 'qwen-cn/qwen-flash-2025-07-28', uiLanguage: 'zh' }),
   });
   try {
     hybridCtrl.start();
     hybridCtrl.sync();
-    // Synchronously visible at 0ms BEFORE model resolves
-    const instantLocal = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
-    assert.ok(instantLocal);
+    // No transitional local suggestion while the model is still thinking
+    assert.equal(host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
     assert.equal(fetchCalls, 1);
 
-    // Model resolves and upgrades in place
+    // Model answers once, and that single answer is what shows
     resolveModel();
     await new Promise((r) => setTimeout(r, 15));
     const upgraded = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
     assert.equal(upgraded, '快模型升级后的精准建议');
+    assert.equal(fetchCalls, 1);
 
     // Tab works even when user has NOT clicked the composer (e.g., focus on chat/body),
     // while yielding when focus is inside a modal/drawer/other input.
@@ -2379,6 +2407,36 @@ test('prompt-suggest passes reasoning_effort minimal for doubao-seed-2 models on
   }))).json();
   assert.equal(r2.ok, true);
   assert.equal('reasoning_effort' in sentBodies[1], false);
+});
+
+test('prompt-suggest sends handoff for action-back turns and never asks the user to redo it', async (t) => {
+  const { isWaitingOnUser } = await import('../src/prompt-suggest-controller.js');
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  let systemText = '';
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).endsWith('/v1/models')) {
+      return Response.json({ data: [{ id: 'volcengine/doubao-seed-2-0-mini-260428', display_name: 'mini' }] });
+    }
+    systemText = JSON.parse(String(init?.body || '{}')).messages[0].content;
+    return Response.json({ choices: [{ message: { content: '直接授权GitHub' } }] });
+  });
+
+  const authText = '现在只差 GitHub 这一步需要你点两下，验证码已复制到剪贴板，在输入框粘贴后点继续。';
+  assert.equal(isWaitingOnUser(authText), true);
+  assert.equal(isWaitingOnUser('已改好，24 项测试通过。'), false);
+
+  const res = await (await route.fetch(new Request('http://localhost', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'volcengine/doubao-seed-2-0-mini-260428',
+      assistant: authText,
+      zh: true,
+      handoff: true,
+    }),
+  }))).json();
+  assert.match(systemText, /早就做完了/);
+  assert.equal(res.text, '已经弄好了，继续');
 });
 
 test('sidebar tools register the More-menu entries through the slot inject, not at apply time', () => {

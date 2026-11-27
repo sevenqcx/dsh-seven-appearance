@@ -59,6 +59,11 @@ export function registerSideQuestion(ctx, React, store) {
           throw new Error('Sidebar draft could not be initialized');
         }
         initialized.add(reference);
+        // 草稿填好后把焦点送进侧栏输入框，按一次回车就能发送
+        setTimeout(() => {
+          const el = document.querySelector('.op-side-question [data-composer-input]');
+          el?.focus?.();
+        }, 80);
       }).catch(() => { if (active) setFailed(true); });
       return () => { active = false; };
     }, [reference, prompt]);
