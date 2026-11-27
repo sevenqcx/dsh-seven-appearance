@@ -373,6 +373,7 @@ test('explain endpoint relays streamed deltas from the fastest model', async () 
     const handler = createHostHandlers(dir).find((h) => h.path === '/api/dsh-obsidian-prism/explain');
     assert.ok(handler);
     const seen = [];
+    const sent = [];
     globalThis.fetch = async (url, options = {}) => {
       seen.push(String(url));
       if (String(url).endsWith('/v1/models')) {
@@ -381,6 +382,7 @@ test('explain endpoint relays streamed deltas from the fastest model', async () 
         });
       }
       const body = JSON.parse(options.body);
+      sent.push(body);
       assert.equal(body.stream, true);
       assert.equal(body.model, seen.length > 2 ? 'local/big' : 'local/qwen-flash');
       assert.match(body.messages[0].content, /解释|explain/i);
@@ -406,6 +408,24 @@ test('explain endpoint relays streamed deltas from the fastest model', async () 
     assert.match(res.headers.get('content-type'), /text\/plain/);
     assert.equal(await res.text(), '这段是在说：第三方做的服务。');
     assert.ok(seen.some((u) => u.endsWith('/chat/completions')));
+
+    // 追问：消息顺序必须是一问一答交替，追问放在最后一句
+    await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        text: '核心结论', question: '现在是什么模型',
+        history: [
+          { role: 'user', content: '解释一下这段是什么意思。' },
+          { role: 'assistant', content: '这段是说核心结论。' },
+        ],
+      }),
+    }));
+    const followUp = sent[sent.length - 1];
+    assert.deepEqual(followUp.messages.map((m) => m.role), ['system', 'user', 'assistant', 'user']);
+    assert.equal(followUp.messages[3].content, '现在是什么模型');
+    assert.match(followUp.messages[1].content, /核心结论/);
+    assert.equal(followUp.messages.filter((m) => m.role === 'user').length, 2);
 
     // 推荐里选的那一档会带过来，认不出就回落到最快一档
     await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {

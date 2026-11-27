@@ -406,14 +406,28 @@ function buildExplainMessages({ text, context, role, question, history, zh }) {
       excerpt,
       ...(around ? ['', '【The whole message it came from】', around] : []),
     ].join('\n');
-  const messages = [
-    { role: 'system', content: sys },
-    { role: 'user', content: `${block}\n\n${question ? question : (zh ? '解释一下这段是什么意思。' : 'Explain what this passage means.')}` },
-  ];
+  const firstQuestion = question || (zh ? '解释一下这段是什么意思。' : 'Explain what this passage means.');
+
+  // 一轮一问一答：选中的那段只在第一句里给，追问接在后面，不留下两个用户消息连在一起
+  const turns = [];
   for (const item of history) {
     if (!item || (item.role !== 'user' && item.role !== 'assistant')) continue;
     const content = String(item.content || '').trim().slice(0, 2000);
-    if (content) messages.push({ role: item.role, content });
+    if (!content) continue;
+    if (turns.length === 0 && item.role !== 'user') continue;
+    turns.push({ role: item.role, content });
+  }
+  while (turns.length && turns[turns.length - 1].role === 'user') turns.pop();
+
+  const messages = [{ role: 'system', content: sys }];
+  if (turns.length === 0) {
+    messages.push({ role: 'user', content: `${block}\n\n${firstQuestion}` });
+    return messages;
+  }
+  messages.push({ role: 'user', content: `${block}\n\n${turns[0].content}` });
+  for (let i = 1; i < turns.length; i += 1) messages.push(turns[i]);
+  if (messages[messages.length - 1].role === 'assistant') {
+    messages.push({ role: 'user', content: question || (zh ? '接着说。' : 'Go on.') });
   }
   return messages;
 }

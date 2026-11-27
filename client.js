@@ -16344,14 +16344,17 @@ function createExplainPopover({ getSettings }) {
       }
       if (seq !== run) return;
       const answer = plainify(raw).trim();
-      answerEl.textContent = answer || (zh() ? '没读出结果，再问一次试试。' : 'No answer, try again.');
-      if (answer) {
-        history = [
-          ...history.slice(-6),
-          { role: 'user', content: question || (zh() ? '解释一下这段是什么意思。' : 'Explain what this passage means.') },
-          { role: 'assistant', content: answer },
-        ];
+      if (!answer) {
+        if (answerEl.parentNode) answerEl.parentNode.remove();
+        setStatus(zh() ? '模型这次没给内容，再问一次试试。' : 'The model returned nothing, try again.', 'err');
+        return;
       }
+      answerEl.textContent = answer;
+      history = [
+        ...history.slice(-6),
+        { role: 'user', content: question || (zh() ? '解释一下这段是什么意思。' : 'Explain what this passage means.') },
+        { role: 'assistant', content: answer },
+      ];
       setStatus('');
     } catch (error) {
       if (seq !== run) return;
