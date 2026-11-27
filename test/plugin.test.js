@@ -1326,6 +1326,13 @@ test('tracked files and commit identity stay free of personal information', asyn
   assert.doesNotMatch(email, /@[^@]*mac[^@]*\./i, `提交邮箱不能带主机名：${email}`);
 });
 
+test('example config carries every settings key', () => {
+  const example = JSON.parse(readFileSync(new URL('../config.example.json', import.meta.url), 'utf8'));
+  const settings = example.settings || example;
+  const missing = Object.keys(DEFAULT_SETTINGS).filter((k) => !(k in settings));
+  assert.deepEqual(missing, [], `config.example.json 缺少这些键：${missing.join(', ')}`);
+});
+
 test('host settings read/write round-trip', async () => {
   const dir = makeTempDir();
   try {
