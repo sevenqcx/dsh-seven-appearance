@@ -416,14 +416,16 @@ export function createHostHandlers(baseDir) {
               '2. 不要出现「好的」「我这就」「麻烦你」「辛苦了」这类客套；',
               '3. 不要三行都在说「继续」「好了」这类放之四海皆准的空话，最多一行是这种；',
               '4. 不要复述助手刚说的话，不要写函数名、报错原文这类只有程序员才说的词；',
-              '5. 每条不超过 18 个汉字，必须贴住这一轮的具体话题。',
+              '5. 每条不超过 18 个汉字，必须贴住这一轮的具体话题；',
+              '6. 第一行放最可能的那句，判断依据：助手说「改好了／测试通过／上线了」时他多半验收或让你继续；助手在讲原理或做对比时多半追问含义、影响或值不值；助手报错或卡住时多半让你直接修或问为什么；助手给了几个方案让他挑时多半直接点一个。',
+              '7. 后两行放另外两个不同方向，别和第一行同一个意思。',
             ]
             : [
               "Think of what this project owner might say next; give 3 candidates, each on its own line, in clearly different directions.",
               'He is a project owner, not a programmer: he cares about results, progress, cost and risk.',
               'Style: short, direct, no pleasantries, 2-12 words each.',
               'The three must differ in angle: ask meaning, ask impact/risk, ask cost, propose a simpler way, compare an alternative, ask for a demo, challenge a claim, or move on.',
-              "Rules: 3 lines only, no numbering, no quotes, no explanation; no filler; at most one of them may be a generic \"continue\"; do not restate the assistant; no developer jargon; stay on this turn's topic.",
+              "Rules: 3 lines only, no numbering, no quotes, no explanation; no filler; at most one of them may be a generic \"continue\"; do not restate the assistant; no developer jargon; stay on this turn's topic. Put the most likely line first.",
             ];
           const sys = [
             ...sysCore,
