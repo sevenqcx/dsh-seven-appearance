@@ -1,6 +1,6 @@
 {
   "name": "dsh-seven-appearance",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Seven 外观（Seven Appearance）DeepSeek Harness 外观与效率套件（基于 GPL-3.0 Obsidian Prism 移植）：四套深浅主题、输入框棱镜流光、背景微光涟漪、统一模型与推理选择器、下一步提示词推荐、划词与右键侧边追问、像素伙伴、本地壁纸与中英双语外观工坊。",
   "license": "GPL-3.0-only",
