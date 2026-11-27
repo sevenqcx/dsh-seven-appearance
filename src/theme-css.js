@@ -129,26 +129,48 @@ html[data-op-enabled="1"][data-op-effective-theme="dark"][data-op-dark-preset="o
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 255, 255, 0.085);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 255, 255, 0.14);
+  --dsw-specific-sidebar-glass-collapsed-fill: rgba(255, 255, 255, 0.085);
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(255, 255, 255, 0.14);
+  --dsw-specific-sidebar-nav-item-active: rgba(255, 255, 255, 0.09);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(255, 255, 255, 0.13);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.052);
   --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.084);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 84%, white);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -201,26 +223,48 @@ html[data-op-enabled="1"][data-op-effective-theme="dark"][data-op-dark-preset="w
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
-  --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 72%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(245, 238, 224, 0.085);
+  --dsw-specific-sidebar-glass-hover: rgba(245, 238, 224, 0.14);
+  --dsw-specific-sidebar-glass-collapsed-fill: rgba(245, 238, 224, 0.085);
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(245, 238, 224, 0.14);
+  --dsw-specific-sidebar-nav-item-active: rgba(245, 238, 224, 0.09);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(245, 238, 224, 0.13);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(245, 240, 230, 0.052);
   --dsw-alias-interactive-bg-active: rgba(245, 240, 230, 0.088);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 84%, white);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -272,26 +316,48 @@ html[data-op-enabled="1"][data-op-effective-theme="light"][data-op-light-preset=
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 255, 255, 0.62);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 255, 255, 0.85);
+  --dsw-specific-sidebar-glass-collapsed-fill: transparent;
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(15, 23, 42, 0.06);
+  --dsw-specific-sidebar-nav-item-active: rgba(15, 23, 42, 0.075);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(15, 23, 42, 0.11);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(15, 23, 42, 0.052);
   --dsw-alias-interactive-bg-active: rgba(15, 23, 42, 0.088);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 88%, black);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -344,26 +410,48 @@ html[data-op-enabled="1"][data-op-effective-theme="light"][data-op-light-preset=
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 253, 248, 0.64);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 253, 248, 0.88);
+  --dsw-specific-sidebar-glass-collapsed-fill: transparent;
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(42, 32, 20, 0.06);
+  --dsw-specific-sidebar-nav-item-active: rgba(42, 32, 20, 0.075);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(42, 32, 20, 0.11);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(42, 32, 20, 0.055);
   --dsw-alias-interactive-bg-active: rgba(42, 32, 20, 0.09);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 88%, black);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -379,7 +467,9 @@ html[data-op-enabled="1"][data-op-accent="prism"] body[data-ds-dark-theme] {
   --op-prism-conic: conic-gradient(from var(--op-prism-angle), #4285F4 0deg, #5CC6FC 75deg, #9B72CB 155deg, #EA4335 235deg, #FBBC04 300deg, #4285F4 360deg);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -392,7 +482,9 @@ html[data-op-enabled="1"][data-op-accent="cobalt"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(79, 139, 255, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -405,7 +497,9 @@ html[data-op-enabled="1"][data-op-accent="terracotta"] body[data-ds-dark-theme] 
   --op-accent-glow: rgba(217, 119, 87, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -418,7 +512,9 @@ html[data-op-enabled="1"][data-op-accent="emerald"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(56, 184, 137, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -431,7 +527,9 @@ html[data-op-enabled="1"][data-op-accent="amethyst"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(160, 124, 232, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -444,7 +542,9 @@ html[data-op-enabled="1"][data-op-accent="amber"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(229, 169, 59, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -457,7 +557,9 @@ html[data-op-enabled="1"][data-op-accent="rose"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(232, 106, 138, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -635,8 +737,13 @@ html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] body[
   --dsw-alias-bg-base: color-mix(in srgb, var(--op-bg-1) 64%, transparent);
   --dsw-alias-bg-l1: color-mix(in srgb, var(--op-bg-2) 78%, transparent);
   --dsw-alias-bg-layer-1: color-mix(in srgb, var(--op-bg-2) 80%, transparent);
+  --dsw-specific-input-major: color-mix(in srgb, var(--op-bg-2) 82%, transparent);
   --dsw-specific-sidebar-fill: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 52%, transparent);
+}
+html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] [data-composer-card] {
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
 }
 html[data-op-enabled="1"][data-op-has-wallpaper="1"] body {
   background-color: var(--op-bg-1);
@@ -1316,6 +1423,10 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
 .op-select:hover,
 .op-select:focus-visible {
   border-color: var(--op-accent, #669DF6);
+}
+.op-select option {
+  background: var(--op-bg-2, #141418);
+  color: var(--op-fg-1, #F2F2F5);
 }
 .op-btn {
   border: 1px solid var(--dsw-alias-border-l2, var(--op-border-2));

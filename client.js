@@ -9798,26 +9798,48 @@ html[data-op-enabled="1"][data-op-effective-theme="dark"][data-op-dark-preset="o
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 255, 255, 0.085);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 255, 255, 0.14);
+  --dsw-specific-sidebar-glass-collapsed-fill: rgba(255, 255, 255, 0.085);
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(255, 255, 255, 0.14);
+  --dsw-specific-sidebar-nav-item-active: rgba(255, 255, 255, 0.09);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(255, 255, 255, 0.13);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(255, 255, 255, 0.052);
   --dsw-alias-interactive-bg-active: rgba(255, 255, 255, 0.084);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 84%, white);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -9870,26 +9892,48 @@ html[data-op-enabled="1"][data-op-effective-theme="dark"][data-op-dark-preset="w
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
-  --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 72%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(245, 238, 224, 0.085);
+  --dsw-specific-sidebar-glass-hover: rgba(245, 238, 224, 0.14);
+  --dsw-specific-sidebar-glass-collapsed-fill: rgba(245, 238, 224, 0.085);
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(245, 238, 224, 0.14);
+  --dsw-specific-sidebar-nav-item-active: rgba(245, 238, 224, 0.09);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(245, 238, 224, 0.13);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(245, 240, 230, 0.052);
   --dsw-alias-interactive-bg-active: rgba(245, 240, 230, 0.088);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 84%, white);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -9941,26 +9985,48 @@ html[data-op-enabled="1"][data-op-effective-theme="light"][data-op-light-preset=
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 255, 255, 0.62);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 255, 255, 0.85);
+  --dsw-specific-sidebar-glass-collapsed-fill: transparent;
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(15, 23, 42, 0.06);
+  --dsw-specific-sidebar-nav-item-active: rgba(15, 23, 42, 0.075);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(15, 23, 42, 0.11);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(15, 23, 42, 0.052);
   --dsw-alias-interactive-bg-active: rgba(15, 23, 42, 0.088);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 88%, black);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10013,26 +10079,48 @@ html[data-op-enabled="1"][data-op-effective-theme="light"][data-op-light-preset=
   --dsw-alias-bg-layer-1: var(--op-bg-2);
   --dsw-alias-bg-layer-2: var(--op-bg-3);
   --dsw-alias-bg-layer-3: var(--op-bg-3);
+  --dsw-alias-bg-document-preview: var(--op-bg-0);
+  --dsw-alias-bg-multi-select: var(--op-bg-2);
   --dsw-alias-card-fill: var(--op-bg-2);
   --dsw-alias-card-fill-hover: var(--op-bg-3);
   --dsw-alias-card-tile-fill: var(--op-bg-3);
   --dsw-alias-bg-module-platform: var(--op-bg-0);
+  --dsw-specific-input-major: var(--op-bg-2);
+  --dsw-specific-login-input: var(--op-bg-2);
+  --dsw-specific-bubble: var(--op-bg-3);
+  --dsw-specific-bubble-highlight: var(--op-bg-3);
+  --dsw-specific-selector: var(--op-bg-3);
+  --dsw-specific-tip: var(--op-bg-3);
   --dsw-specific-sidebar-fill: var(--op-sidebar);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
+  --dsw-specific-sidebar-glass-fill: rgba(255, 253, 248, 0.64);
+  --dsw-specific-sidebar-glass-hover: rgba(255, 253, 248, 0.88);
+  --dsw-specific-sidebar-glass-collapsed-fill: transparent;
+  --dsw-specific-sidebar-glass-collapsed-hover: rgba(42, 32, 20, 0.06);
+  --dsw-specific-sidebar-nav-item-active: rgba(42, 32, 20, 0.075);
+  --dsw-specific-sidebar-nav-item-active-accent: rgba(42, 32, 20, 0.11);
   --dsw-menu-surface-fill: var(--op-menu-bg);
   --dsw-alias-menu-group-header-fill: var(--op-menu-bg);
   --dsw-specific-menu: var(--op-menu-bg);
+  --dsw-alias-hovercard-bg: var(--op-bg-2);
+  --dsw-alias-markdown-tag: var(--op-bg-3);
   --dsw-alias-border-l1: var(--op-border-1);
   --dsw-alias-border-l2: var(--op-border-2);
   --dsw-alias-border-l3: var(--op-border-3);
+  --dsw-alias-border-l4: var(--op-border-3);
   --dsw-alias-label-primary: var(--op-fg-1);
   --dsw-alias-label-secondary: var(--op-fg-2);
   --dsw-alias-label-tertiary: var(--op-fg-3);
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-interactive-bg-hover: rgba(42, 32, 20, 0.055);
   --dsw-alias-interactive-bg-active: rgba(42, 32, 20, 0.09);
+  --dsw-alias-interactive-bg-hover-solid: var(--op-bg-3);
+  --dsw-alias-button-floating-fill: var(--op-bg-2);
+  --dsw-alias-button-floating-hover: var(--op-bg-3);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 88%, black);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10048,7 +10136,9 @@ html[data-op-enabled="1"][data-op-accent="prism"] body[data-ds-dark-theme] {
   --op-prism-conic: conic-gradient(from var(--op-prism-angle), #4285F4 0deg, #5CC6FC 75deg, #9B72CB 155deg, #EA4335 235deg, #FBBC04 300deg, #4285F4 360deg);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10061,7 +10151,9 @@ html[data-op-enabled="1"][data-op-accent="cobalt"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(79, 139, 255, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10074,7 +10166,9 @@ html[data-op-enabled="1"][data-op-accent="terracotta"] body[data-ds-dark-theme] 
   --op-accent-glow: rgba(217, 119, 87, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10087,7 +10181,9 @@ html[data-op-enabled="1"][data-op-accent="emerald"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(56, 184, 137, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10100,7 +10196,9 @@ html[data-op-enabled="1"][data-op-accent="amethyst"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(160, 124, 232, 0.42);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10113,7 +10211,9 @@ html[data-op-enabled="1"][data-op-accent="amber"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(229, 169, 59, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10126,7 +10226,9 @@ html[data-op-enabled="1"][data-op-accent="rose"] body[data-ds-dark-theme] {
   --op-accent-glow: rgba(232, 106, 138, 0.4);
   --dsw-alias-brand-primary: var(--op-accent);
   --dsw-alias-button-primary-fill: var(--op-accent);
+  --dsw-alias-button-primary-hover: color-mix(in srgb, var(--op-accent) 86%, var(--op-fg-1));
   --dsw-alias-label-primary-foreground: var(--op-accent-fg);
+  --dsw-alias-label-primary-inverted: var(--op-bg-1);
   --dsw-alias-brand-primary-new-colorprimary-new-color: var(--op-accent);
   --dsh-accent: var(--op-accent);
 }
@@ -10304,8 +10406,13 @@ html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] body[
   --dsw-alias-bg-base: color-mix(in srgb, var(--op-bg-1) 64%, transparent);
   --dsw-alias-bg-l1: color-mix(in srgb, var(--op-bg-2) 78%, transparent);
   --dsw-alias-bg-layer-1: color-mix(in srgb, var(--op-bg-2) 80%, transparent);
+  --dsw-specific-input-major: color-mix(in srgb, var(--op-bg-2) 82%, transparent);
   --dsw-specific-sidebar-fill: color-mix(in srgb, var(--op-sidebar) 70%, transparent);
   --dsw-specific-sidebar-tint: color-mix(in srgb, var(--op-sidebar) 52%, transparent);
+}
+html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] [data-composer-card] {
+  backdrop-filter: blur(16px) saturate(1.2);
+  -webkit-backdrop-filter: blur(16px) saturate(1.2);
 }
 html[data-op-enabled="1"][data-op-has-wallpaper="1"] body {
   background-color: var(--op-bg-1);
@@ -10985,6 +11092,10 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
 .op-select:hover,
 .op-select:focus-visible {
   border-color: var(--op-accent, #669DF6);
+}
+.op-select option {
+  background: var(--op-bg-2, #141418);
+  color: var(--op-fg-1, #F2F2F5);
 }
 .op-btn {
   border: 1px solid var(--dsw-alias-border-l2, var(--op-border-2));
@@ -12933,7 +13044,10 @@ function detectStreamingActive(doc = document) {
 function resolveMascotCamp(settings) {
   if (settings.accent === 'terracotta' || settings.accent === 'amber') return 'claude';
   if (settings.accent === 'cobalt' || settings.accent === 'prism') return 'gemini';
-  if (settings.darkPreset === 'warm' && settings.themeMode !== 'light') return 'claude';
+  const eff = typeof document !== 'undefined' ? document.documentElement?.getAttribute?.('data-op-effective-theme') : null;
+  const isDark = eff ? eff === 'dark' : settings.themeMode === 'dark';
+  if (isDark && settings.darkPreset === 'warm') return 'claude';
+  if (!isDark && settings.lightPreset === 'alabaster') return 'claude';
   return 'gemini';
 }
 
@@ -23400,9 +23514,187 @@ function createSidebarTools({ React, require: requireRuntime }) {
 
 
 
-function resolveEffectiveTheme(settings) {
+const HOST_THEME_PREV_KEY = 'dsh-obsidian-prism:host-theme-prev:v1';
+const BUILTIN_HOST_PREFS = new Set(['light', 'dark', 'system']);
+
+function readSavedHostThemePref(storage) {
+  try {
+    const raw = storage?.getItem?.(HOST_THEME_PREV_KEY);
+    return BUILTIN_HOST_PREFS.has(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedHostThemePref(storage, pref) {
+  try {
+    if (!storage) return;
+    if (pref && BUILTIN_HOST_PREFS.has(pref)) storage.setItem(HOST_THEME_PREV_KEY, pref);
+    else storage.removeItem(HOST_THEME_PREV_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+function createHostThemeSync({ getSettings, setSettings, onThemeUpdated, storage = null, doc = null }) {
+  const getStorage = () => storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+  const getDoc = () => doc || (typeof document !== 'undefined' ? document : null);
+  let themeService = null;
+  let syncingHost = false;
+  let lastHostPref = null;
+  let domBackup = null;
+
+  function applyDomFallback(settings) {
+    const d = getDoc();
+    const html = d?.documentElement;
+    const body = d?.body;
+    if (!html || !body) return;
+    const wantOverride = Boolean(settings?.enabled && (settings.themeMode === 'dark' || settings.themeMode === 'light'));
+    if (wantOverride) {
+      if (!domBackup) {
+        domBackup = {
+          hasDark: body.hasAttribute('data-ds-dark-theme'),
+          themeSource: html.getAttribute('data-ds-theme-source'),
+          colorScheme: html.style?.colorScheme || '',
+        };
+      }
+      const isDark = settings.themeMode === 'dark';
+      if (isDark) body.setAttribute('data-ds-dark-theme', '');
+      else body.removeAttribute('data-ds-dark-theme');
+      html.setAttribute('data-ds-theme-source', isDark ? 'dark' : 'light');
+      if (html.style) html.style.colorScheme = isDark ? 'dark' : 'light';
+    } else if (domBackup) {
+      const b = domBackup;
+      domBackup = null;
+      if (b.hasDark) body.setAttribute('data-ds-dark-theme', '');
+      else body.removeAttribute('data-ds-dark-theme');
+      if (b.themeSource === null || b.themeSource === undefined) html.removeAttribute('data-ds-theme-source');
+      else html.setAttribute('data-ds-theme-source', b.themeSource);
+      if (html.style) html.style.colorScheme = b.colorScheme;
+    }
+  }
+
+  function syncFromSettings(settings = getSettings()) {
+    if (!themeService) {
+      applyDomFallback(settings);
+      return;
+    }
+    const wantOverride = Boolean(settings?.enabled && (settings.themeMode === 'dark' || settings.themeMode === 'light'));
+    const curSnap = themeService.getTheme?.();
+    const curPref = curSnap?.preference;
+    if (wantOverride) {
+      const target = settings.themeMode;
+      const st = getStorage();
+      if (!readSavedHostThemePref(st) && BUILTIN_HOST_PREFS.has(curPref) && curPref !== target) {
+        writeSavedHostThemePref(st, curPref);
+      }
+      if (curPref !== target) {
+        syncingHost = true;
+        try {
+          themeService.setTheme(target);
+          lastHostPref = target;
+        } catch {
+          applyDomFallback(settings);
+        } finally {
+          syncingHost = false;
+        }
+      } else {
+        lastHostPref = curPref;
+      }
+    } else {
+      const st = getStorage();
+      const saved = readSavedHostThemePref(st);
+      if (saved) {
+        writeSavedHostThemePref(st, null);
+        if (curPref !== saved) {
+          syncingHost = true;
+          try {
+            themeService.setTheme(saved);
+            lastHostPref = saved;
+          } catch {
+            // ignore restore failure
+          } finally {
+            syncingHost = false;
+          }
+        }
+      }
+      if (domBackup) {
+        applyDomFallback({ enabled: false, themeMode: 'auto' });
+      }
+    }
+  }
+
+  function handleHostThemeChange(snapshot) {
+    if (syncingHost) return;
+    const pref = snapshot?.preference;
+    const prevSeen = lastHostPref;
+    if (pref !== undefined) lastHostPref = pref;
+    const s = getSettings();
+    if (
+      s?.enabled &&
+      (s.themeMode === 'dark' || s.themeMode === 'light') &&
+      pref !== undefined &&
+      pref !== prevSeen &&
+      pref !== s.themeMode
+    ) {
+      writeSavedHostThemePref(getStorage(), null);
+      setSettings?.({ themeMode: 'auto' });
+      return;
+    }
+    onThemeUpdated?.(snapshot);
+  }
+
+  function attach(theme) {
+    themeService = theme || null;
+    if (themeService) {
+      domBackup = null;
+      lastHostPref = themeService.getTheme?.()?.preference ?? null;
+      syncFromSettings(getSettings());
+    }
+  }
+
+  function detach() {
+    themeService = null;
+  }
+
+  function dispose({ restore = false } = {}) {
+    if (restore) {
+      if (themeService) {
+        const st = getStorage();
+        const saved = readSavedHostThemePref(st);
+        if (saved) {
+          writeSavedHostThemePref(st, null);
+          syncingHost = true;
+          try {
+            themeService.setTheme(saved);
+          } catch {
+            // ignore
+          } finally {
+            syncingHost = false;
+          }
+        }
+      } else if (domBackup) {
+        applyDomFallback({ enabled: false, themeMode: 'auto' });
+      }
+    }
+    themeService = null;
+    domBackup = null;
+  }
+
+  return {
+    syncFromSettings,
+    handleHostThemeChange,
+    attach,
+    detach,
+    dispose,
+    getEffectiveHostScheme: () => themeService?.getTheme?.()?.active?.colorScheme || null,
+  };
+}
+
+function resolveEffectiveTheme(settings, hostScheme = null) {
   if (settings.themeMode === 'dark') return 'dark';
   if (settings.themeMode === 'light') return 'light';
+  if (hostScheme === 'dark' || hostScheme === 'light') return hostScheme;
   const html = document.documentElement;
   const body = document.body;
   if (body?.hasAttribute('data-ds-dark-theme') || html.hasAttribute('data-ds-dark-theme')) return 'dark';
@@ -23412,7 +23704,7 @@ function resolveEffectiveTheme(settings) {
   return 'light';
 }
 
-function applyRootAttributes(settings) {
+function applyRootAttributes(settings, hostScheme = null) {
   const html = document.documentElement;
   if (!settings.enabled) {
     html.setAttribute('data-op-enabled', '0');
@@ -23430,7 +23722,7 @@ function applyRootAttributes(settings) {
     html.removeAttribute('data-op-effort-crystal');
     return;
   }
-  const eff = resolveEffectiveTheme(settings);
+  const eff = resolveEffectiveTheme(settings, hostScheme);
   html.setAttribute('data-op-enabled', '1');
   html.setAttribute('data-op-effective-theme', eff);
   html.setAttribute('data-op-dark-preset', settings.darkPreset);
@@ -23539,9 +23831,23 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           },
         });
 
+        const hostThemeSync = createHostThemeSync({
+          getSettings,
+          setSettings: (patch) => store.set(patch),
+          onThemeUpdated: () => {
+            const s = store.get();
+            applyRootAttributes(s, hostThemeSync.getEffectiveHostScheme());
+            rippleCtrl.refreshTheme();
+            prismRimCtrl.refresh();
+            statusVialCtrl.refresh();
+            mascotCtrl.refresh();
+          },
+        });
+
         const syncAll = () => {
           const s = store.get();
-          applyRootAttributes(s);
+          hostThemeSync.syncFromSettings(s);
+          applyRootAttributes(s, hostThemeSync.getEffectiveHostScheme());
           wallpaperCtrl.refresh();
           effectsCtrl.refresh();
           rippleCtrl.refresh();
@@ -23557,7 +23863,8 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         };
 
         const unsub = store.subscribe(syncAll);
-        applyRootAttributes(store.get());
+        hostThemeSync.syncFromSettings(store.get());
+        applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
         wallpaperCtrl.start();
         effectsCtrl.start();
         rippleCtrl.start();
@@ -23572,13 +23879,38 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         statusVialCtrl.start();
         store.hydrateFromHost();
 
+        // Bridge with DSH native theme service (keeps body[data-ds-dark-theme], macOS vibrancy, Shiki & sibling plugins in sync)
+        let disposeThemeBridge = null;
+        if (typeof ctx.inject === 'function') {
+          try {
+            disposeThemeBridge = ctx.inject(['theme'], (scope) => {
+              hostThemeSync.attach(scope.theme);
+              applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
+              rippleCtrl.refreshTheme();
+              prismRimCtrl.refresh();
+              statusVialCtrl.refresh();
+              mascotCtrl.refresh();
+              const offTheme = typeof scope.on === 'function'
+                ? scope.on('theme/change', (snapshot) => hostThemeSync.handleHostThemeChange(snapshot))
+                : null;
+              return () => {
+                if (typeof offTheme === 'function') offTheme();
+                hostThemeSync.detach();
+              };
+            });
+          } catch {
+            // fallback DOM sync remains active
+          }
+        }
+
         // Watch DSH dark-theme toggle on <body> (ThemePresenter) and <html>
         const themeMo = new MutationObserver(() => {
           if (store.get().themeMode === 'auto') {
-            applyRootAttributes(store.get());
+            applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
             rippleCtrl.refreshTheme();
             prismRimCtrl.refresh();
             statusVialCtrl.refresh();
+            mascotCtrl.refresh();
           }
         });
         if (document.body) {
@@ -23603,6 +23935,11 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
             delete window[RUNTIME_GLOBAL_KEY];
           }
           safeDispose(() => themeMo.disconnect());
+          safeDispose(() => {
+            if (typeof disposeThemeBridge === 'function') disposeThemeBridge();
+            else disposeThemeBridge?.dispose?.();
+          });
+          safeDispose(() => hostThemeSync.dispose({ restore: false }));
           safeDispose(() => unsub());
           safeDispose(() => statusVialCtrl.dispose());
           safeDispose(() => prismRimCtrl.dispose());

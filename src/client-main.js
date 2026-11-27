@@ -24,9 +24,187 @@ import {
 import { createStudioComponents } from './studio-ui.js';
 import { createSidebarTools } from './sidebar-tools.js';
 
-function resolveEffectiveTheme(settings) {
+const HOST_THEME_PREV_KEY = 'dsh-obsidian-prism:host-theme-prev:v1';
+const BUILTIN_HOST_PREFS = new Set(['light', 'dark', 'system']);
+
+function readSavedHostThemePref(storage) {
+  try {
+    const raw = storage?.getItem?.(HOST_THEME_PREV_KEY);
+    return BUILTIN_HOST_PREFS.has(raw) ? raw : null;
+  } catch {
+    return null;
+  }
+}
+
+function writeSavedHostThemePref(storage, pref) {
+  try {
+    if (!storage) return;
+    if (pref && BUILTIN_HOST_PREFS.has(pref)) storage.setItem(HOST_THEME_PREV_KEY, pref);
+    else storage.removeItem(HOST_THEME_PREV_KEY);
+  } catch {
+    // ignore storage errors
+  }
+}
+
+export function createHostThemeSync({ getSettings, setSettings, onThemeUpdated, storage = null, doc = null }) {
+  const getStorage = () => storage || (typeof localStorage !== 'undefined' ? localStorage : null);
+  const getDoc = () => doc || (typeof document !== 'undefined' ? document : null);
+  let themeService = null;
+  let syncingHost = false;
+  let lastHostPref = null;
+  let domBackup = null;
+
+  function applyDomFallback(settings) {
+    const d = getDoc();
+    const html = d?.documentElement;
+    const body = d?.body;
+    if (!html || !body) return;
+    const wantOverride = Boolean(settings?.enabled && (settings.themeMode === 'dark' || settings.themeMode === 'light'));
+    if (wantOverride) {
+      if (!domBackup) {
+        domBackup = {
+          hasDark: body.hasAttribute('data-ds-dark-theme'),
+          themeSource: html.getAttribute('data-ds-theme-source'),
+          colorScheme: html.style?.colorScheme || '',
+        };
+      }
+      const isDark = settings.themeMode === 'dark';
+      if (isDark) body.setAttribute('data-ds-dark-theme', '');
+      else body.removeAttribute('data-ds-dark-theme');
+      html.setAttribute('data-ds-theme-source', isDark ? 'dark' : 'light');
+      if (html.style) html.style.colorScheme = isDark ? 'dark' : 'light';
+    } else if (domBackup) {
+      const b = domBackup;
+      domBackup = null;
+      if (b.hasDark) body.setAttribute('data-ds-dark-theme', '');
+      else body.removeAttribute('data-ds-dark-theme');
+      if (b.themeSource === null || b.themeSource === undefined) html.removeAttribute('data-ds-theme-source');
+      else html.setAttribute('data-ds-theme-source', b.themeSource);
+      if (html.style) html.style.colorScheme = b.colorScheme;
+    }
+  }
+
+  function syncFromSettings(settings = getSettings()) {
+    if (!themeService) {
+      applyDomFallback(settings);
+      return;
+    }
+    const wantOverride = Boolean(settings?.enabled && (settings.themeMode === 'dark' || settings.themeMode === 'light'));
+    const curSnap = themeService.getTheme?.();
+    const curPref = curSnap?.preference;
+    if (wantOverride) {
+      const target = settings.themeMode;
+      const st = getStorage();
+      if (!readSavedHostThemePref(st) && BUILTIN_HOST_PREFS.has(curPref) && curPref !== target) {
+        writeSavedHostThemePref(st, curPref);
+      }
+      if (curPref !== target) {
+        syncingHost = true;
+        try {
+          themeService.setTheme(target);
+          lastHostPref = target;
+        } catch {
+          applyDomFallback(settings);
+        } finally {
+          syncingHost = false;
+        }
+      } else {
+        lastHostPref = curPref;
+      }
+    } else {
+      const st = getStorage();
+      const saved = readSavedHostThemePref(st);
+      if (saved) {
+        writeSavedHostThemePref(st, null);
+        if (curPref !== saved) {
+          syncingHost = true;
+          try {
+            themeService.setTheme(saved);
+            lastHostPref = saved;
+          } catch {
+            // ignore restore failure
+          } finally {
+            syncingHost = false;
+          }
+        }
+      }
+      if (domBackup) {
+        applyDomFallback({ enabled: false, themeMode: 'auto' });
+      }
+    }
+  }
+
+  function handleHostThemeChange(snapshot) {
+    if (syncingHost) return;
+    const pref = snapshot?.preference;
+    const prevSeen = lastHostPref;
+    if (pref !== undefined) lastHostPref = pref;
+    const s = getSettings();
+    if (
+      s?.enabled &&
+      (s.themeMode === 'dark' || s.themeMode === 'light') &&
+      pref !== undefined &&
+      pref !== prevSeen &&
+      pref !== s.themeMode
+    ) {
+      writeSavedHostThemePref(getStorage(), null);
+      setSettings?.({ themeMode: 'auto' });
+      return;
+    }
+    onThemeUpdated?.(snapshot);
+  }
+
+  function attach(theme) {
+    themeService = theme || null;
+    if (themeService) {
+      domBackup = null;
+      lastHostPref = themeService.getTheme?.()?.preference ?? null;
+      syncFromSettings(getSettings());
+    }
+  }
+
+  function detach() {
+    themeService = null;
+  }
+
+  function dispose({ restore = false } = {}) {
+    if (restore) {
+      if (themeService) {
+        const st = getStorage();
+        const saved = readSavedHostThemePref(st);
+        if (saved) {
+          writeSavedHostThemePref(st, null);
+          syncingHost = true;
+          try {
+            themeService.setTheme(saved);
+          } catch {
+            // ignore
+          } finally {
+            syncingHost = false;
+          }
+        }
+      } else if (domBackup) {
+        applyDomFallback({ enabled: false, themeMode: 'auto' });
+      }
+    }
+    themeService = null;
+    domBackup = null;
+  }
+
+  return {
+    syncFromSettings,
+    handleHostThemeChange,
+    attach,
+    detach,
+    dispose,
+    getEffectiveHostScheme: () => themeService?.getTheme?.()?.active?.colorScheme || null,
+  };
+}
+
+function resolveEffectiveTheme(settings, hostScheme = null) {
   if (settings.themeMode === 'dark') return 'dark';
   if (settings.themeMode === 'light') return 'light';
+  if (hostScheme === 'dark' || hostScheme === 'light') return hostScheme;
   const html = document.documentElement;
   const body = document.body;
   if (body?.hasAttribute('data-ds-dark-theme') || html.hasAttribute('data-ds-dark-theme')) return 'dark';
@@ -36,7 +214,7 @@ function resolveEffectiveTheme(settings) {
   return 'light';
 }
 
-function applyRootAttributes(settings) {
+function applyRootAttributes(settings, hostScheme = null) {
   const html = document.documentElement;
   if (!settings.enabled) {
     html.setAttribute('data-op-enabled', '0');
@@ -54,7 +232,7 @@ function applyRootAttributes(settings) {
     html.removeAttribute('data-op-effort-crystal');
     return;
   }
-  const eff = resolveEffectiveTheme(settings);
+  const eff = resolveEffectiveTheme(settings, hostScheme);
   html.setAttribute('data-op-enabled', '1');
   html.setAttribute('data-op-effective-theme', eff);
   html.setAttribute('data-op-dark-preset', settings.darkPreset);
@@ -163,9 +341,23 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
           },
         });
 
+        const hostThemeSync = createHostThemeSync({
+          getSettings,
+          setSettings: (patch) => store.set(patch),
+          onThemeUpdated: () => {
+            const s = store.get();
+            applyRootAttributes(s, hostThemeSync.getEffectiveHostScheme());
+            rippleCtrl.refreshTheme();
+            prismRimCtrl.refresh();
+            statusVialCtrl.refresh();
+            mascotCtrl.refresh();
+          },
+        });
+
         const syncAll = () => {
           const s = store.get();
-          applyRootAttributes(s);
+          hostThemeSync.syncFromSettings(s);
+          applyRootAttributes(s, hostThemeSync.getEffectiveHostScheme());
           wallpaperCtrl.refresh();
           effectsCtrl.refresh();
           rippleCtrl.refresh();
@@ -181,7 +373,8 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         };
 
         const unsub = store.subscribe(syncAll);
-        applyRootAttributes(store.get());
+        hostThemeSync.syncFromSettings(store.get());
+        applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
         wallpaperCtrl.start();
         effectsCtrl.start();
         rippleCtrl.start();
@@ -196,13 +389,38 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         statusVialCtrl.start();
         store.hydrateFromHost();
 
+        // Bridge with DSH native theme service (keeps body[data-ds-dark-theme], macOS vibrancy, Shiki & sibling plugins in sync)
+        let disposeThemeBridge = null;
+        if (typeof ctx.inject === 'function') {
+          try {
+            disposeThemeBridge = ctx.inject(['theme'], (scope) => {
+              hostThemeSync.attach(scope.theme);
+              applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
+              rippleCtrl.refreshTheme();
+              prismRimCtrl.refresh();
+              statusVialCtrl.refresh();
+              mascotCtrl.refresh();
+              const offTheme = typeof scope.on === 'function'
+                ? scope.on('theme/change', (snapshot) => hostThemeSync.handleHostThemeChange(snapshot))
+                : null;
+              return () => {
+                if (typeof offTheme === 'function') offTheme();
+                hostThemeSync.detach();
+              };
+            });
+          } catch {
+            // fallback DOM sync remains active
+          }
+        }
+
         // Watch DSH dark-theme toggle on <body> (ThemePresenter) and <html>
         const themeMo = new MutationObserver(() => {
           if (store.get().themeMode === 'auto') {
-            applyRootAttributes(store.get());
+            applyRootAttributes(store.get(), hostThemeSync.getEffectiveHostScheme());
             rippleCtrl.refreshTheme();
             prismRimCtrl.refresh();
             statusVialCtrl.refresh();
+            mascotCtrl.refresh();
           }
         });
         if (document.body) {
@@ -227,6 +445,11 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
             delete window[RUNTIME_GLOBAL_KEY];
           }
           safeDispose(() => themeMo.disconnect());
+          safeDispose(() => {
+            if (typeof disposeThemeBridge === 'function') disposeThemeBridge();
+            else disposeThemeBridge?.dispose?.();
+          });
+          safeDispose(() => hostThemeSync.dispose({ restore: false }));
           safeDispose(() => unsub());
           safeDispose(() => statusVialCtrl.dispose());
           safeDispose(() => prismRimCtrl.dispose());

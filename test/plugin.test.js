@@ -2845,3 +2845,148 @@ test('sidebar tools register the More-menu entries through the slot inject, not 
     'No sidebar.panellist.actions registration may live outside the inject callback',
   );
 });
+
+test('all four palettes override DSH composer, sidebar vibrancy, bubble, and primary-button-hover tokens', () => {
+  const css = buildStylesheet();
+  const requiredTokens = [
+    '--dsw-specific-input-major',
+    '--dsw-specific-sidebar-glass-fill',
+    '--dsw-specific-sidebar-glass-hover',
+    '--dsw-specific-sidebar-nav-item-active',
+    '--dsw-specific-bubble',
+    '--dsw-alias-button-floating-fill',
+    '--dsw-alias-button-primary-hover',
+    '--dsw-alias-hovercard-bg',
+    '--dsw-alias-markdown-tag',
+  ];
+  const paletteMarkers = [
+    'data-op-dark-preset="obsidian"',
+    'data-op-dark-preset="warm"',
+    'data-op-light-preset="crystal"',
+    'data-op-light-preset="alabaster"',
+  ];
+  for (const marker of paletteMarkers) {
+    const start = css.indexOf(marker);
+    assert.ok(start >= 0, `Missing palette block for ${marker}`);
+    const blockEnd = css.indexOf('\n}', start);
+    assert.ok(blockEnd > start, `Malformed CSS block for ${marker}`);
+    const block = css.slice(start, blockEnd);
+    for (const token of requiredTokens) {
+      assert.ok(
+        block.includes(`${token}:`),
+        `Palette ${marker} is missing ${token}; dark/light surfaces will desync from DSH`,
+      );
+    }
+  }
+  for (const accent of ['prism', 'cobalt', 'terracotta', 'emerald', 'amethyst', 'amber', 'rose']) {
+    const marker = `data-op-accent="${accent}"`;
+    const start = css.indexOf(marker);
+    assert.ok(start >= 0, `Missing accent block for ${accent}`);
+    const blockEnd = css.indexOf('\n}', start);
+    const block = css.slice(start, blockEnd);
+    assert.ok(
+      block.includes('--dsw-alias-button-primary-hover:'),
+      `Accent ${accent} must override --dsw-alias-button-primary-hover so primary buttons stay legible on hover in dark mode`,
+    );
+  }
+});
+
+test('host theme sync keeps DSH native theme, body[data-ds-dark-theme], and sibling plugins aligned with themeMode', async () => {
+  const { createHostThemeSync } = await import('../src/client-main.js');
+  const mem = new Map();
+  const storage = {
+    getItem: (k) => (mem.has(k) ? mem.get(k) : null),
+    setItem: (k, v) => mem.set(k, String(v)),
+    removeItem: (k) => mem.delete(k),
+  };
+
+  let settings = { enabled: true, themeMode: 'auto' };
+  let hostPref = 'light';
+  const calls = [];
+  let updatedCount = 0;
+
+  const listeners = [];
+  const fakeTheme = {
+    getTheme: () => ({
+      preference: hostPref,
+      active: { colorScheme: hostPref === 'dark' ? 'dark' : 'light' },
+    }),
+    setTheme: (id) => {
+      calls.push(id);
+      hostPref = id;
+      const snap = fakeTheme.getTheme();
+      for (const fn of listeners) fn(snap);
+    },
+  };
+
+  const sync = createHostThemeSync({
+    getSettings: () => settings,
+    setSettings: (patch) => {
+      settings = { ...settings, ...patch };
+      sync.syncFromSettings(settings);
+    },
+    onThemeUpdated: () => { updatedCount += 1; },
+    storage,
+  });
+  listeners.push((snap) => sync.handleHostThemeChange(snap));
+  sync.attach(fakeTheme);
+
+  assert.deepEqual(calls, [], 'auto mode must not mutate DSH host theme on mount');
+
+  // Switching Seven Appearance to dark updates DSH native theme to dark and remembers light
+  settings = { enabled: true, themeMode: 'dark' };
+  sync.syncFromSettings(settings);
+  assert.equal(hostPref, 'dark');
+  assert.deepEqual(calls, ['dark']);
+  assert.equal(sync.getEffectiveHostScheme(), 'dark');
+
+  // Switching back to auto restores prior DSH preference (light)
+  settings = { enabled: true, themeMode: 'auto' };
+  sync.syncFromSettings(settings);
+  assert.equal(hostPref, 'light');
+  assert.deepEqual(calls, ['dark', 'light']);
+
+  // Switching to dark, then user explicitly picking light in DSH Settings yields to DSH
+  settings = { enabled: true, themeMode: 'dark' };
+  sync.syncFromSettings(settings);
+  assert.equal(hostPref, 'dark');
+  fakeTheme.setTheme('light');
+  assert.equal(settings.themeMode, 'auto', 'Explicit DSH Settings theme switch must switch Seven Appearance to auto instead of fighting');
+  assert.equal(hostPref, 'light');
+
+  // When DSH theme changes externally in auto mode, refresh callback runs
+  const prevUpdated = updatedCount;
+  fakeTheme.setTheme('dark');
+  assert.equal(updatedCount, prevUpdated + 1);
+});
+
+test('host theme sync falls back to mirroring body[data-ds-dark-theme] when ctx.theme is absent', async () => {
+  const { createHostThemeSync } = await import('../src/client-main.js');
+  const attrs = (init = {}) => {
+    const map = new Map(Object.entries(init));
+    return {
+      style: { colorScheme: 'light' },
+      hasAttribute: (k) => map.has(k),
+      getAttribute: (k) => (map.has(k) ? map.get(k) : null),
+      setAttribute: (k, v) => map.set(k, String(v)),
+      removeAttribute: (k) => map.delete(k),
+    };
+  };
+  const fakeDoc = {
+    documentElement: attrs({ 'data-ds-theme-source': 'light' }),
+    body: attrs(),
+  };
+
+  let settings = { enabled: true, themeMode: 'dark' };
+  const sync = createHostThemeSync({ getSettings: () => settings, doc: fakeDoc });
+  sync.syncFromSettings(settings);
+  assert.equal(fakeDoc.body.hasAttribute('data-ds-dark-theme'), true);
+  assert.equal(fakeDoc.documentElement.getAttribute('data-ds-theme-source'), 'dark');
+  assert.equal(fakeDoc.documentElement.style.colorScheme, 'dark');
+
+  settings = { enabled: true, themeMode: 'auto' };
+  sync.syncFromSettings(settings);
+  assert.equal(fakeDoc.body.hasAttribute('data-ds-dark-theme'), false);
+  assert.equal(fakeDoc.documentElement.getAttribute('data-ds-theme-source'), 'light');
+  assert.equal(fakeDoc.documentElement.style.colorScheme, 'light');
+});

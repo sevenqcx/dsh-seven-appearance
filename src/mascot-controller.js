@@ -44,7 +44,10 @@ export function detectStreamingActive(doc = document) {
 function resolveMascotCamp(settings) {
   if (settings.accent === 'terracotta' || settings.accent === 'amber') return 'claude';
   if (settings.accent === 'cobalt' || settings.accent === 'prism') return 'gemini';
-  if (settings.darkPreset === 'warm' && settings.themeMode !== 'light') return 'claude';
+  const eff = typeof document !== 'undefined' ? document.documentElement?.getAttribute?.('data-op-effective-theme') : null;
+  const isDark = eff ? eff === 'dark' : settings.themeMode === 'dark';
+  if (isDark && settings.darkPreset === 'warm') return 'claude';
+  if (!isDark && settings.lightPreset === 'alabaster') return 'claude';
   return 'gemini';
 }
 
