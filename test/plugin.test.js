@@ -286,8 +286,10 @@ test('prompt suggestions use the completed main turn and the selected Magpie mod
   const sentSystem = JSON.parse(chatCall.arguments[1].body).messages[0].content;
   assert.match(sentSystem, /不客套|客套/);
   assert.match(sentSystem, /3 条|3 lines/);
-  assert.match(sentSystem, /方向|angle/);
-  assert.match(sentSystem, /18 个汉字/);
+  assert.match(sentSystem, /角度|angles/);
+  assert.match(sentSystem, /20 字|20 characters|12 words/);
+  // 只在交回动作时才追加那条补充说明
+  assert.doesNotMatch(sentSystem, /早就做完了/);
 });
 
 test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Tab, and accepts on Tab', async (t) => {
@@ -785,7 +787,8 @@ test('prompt suggestion persists across session switch and composer remount unti
   globalThis.window = { addEventListener() {}, removeEventListener() {} };
 
   let fetchCount = 0;
-  t.mock.method(globalThis, 'fetch', async () => {
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/speech-sample')) return Response.json({ ok: true, count: 1 });
     fetchCount += 1;
     return Response.json({ ok: true, text: '持久建议内容' });
   });
@@ -2449,6 +2452,56 @@ test('prompt-suggest returns three divergent candidates and Shift+Tab cycles the
   assert.deepEqual(res.texts, ['这是什么意思', '会不会影响别的地方', '要花多少钱']);
   assert.equal(res.text, '这是什么意思');
 
+});
+
+test('speech samples are stored and fed back into the next suggestion prompt', async (t) => {
+  const { getDataDirs, appendSpeechSample, readSpeechSamples } = await import('../index.js');
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-op-samples-'));
+  try {
+    const dirs = getDataDirs(dir);
+    assert.deepEqual(await readSpeechSamples(dirs), []);
+    await appendSpeechSample(dirs, '  继续  ');
+    await appendSpeechSample(dirs, '这是什么意思');
+    await appendSpeechSample(dirs, '继续');
+    // 重复出现的会挪到最新，保持「最近说的在最后」
+    assert.deepEqual(await readSpeechSamples(dirs), ['这是什么意思', '继续']);
+
+    for (let i = 0; i < 50; i += 1) await appendSpeechSample(dirs, `第${i}句`);
+    const kept = await readSpeechSamples(dirs);
+    assert.equal(kept.length, 40);
+    assert.equal(kept[kept.length - 1], '第49句');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // 生成建议时把他的话带进提示词
+  const dir2 = mkdtempSync(join(tmpdir(), 'dsh-op-samples2-'));
+  try {
+    const route = createHostHandlers(dir2).find(({ path }) => path.endsWith('/prompt-suggest'));
+    let promptText = '';
+    t.mock.method(globalThis, 'fetch', async (url, init) => {
+      if (String(url).endsWith('/v1/models')) {
+        return Response.json({ data: [{ id: 'volcengine/doubao-seed-2-0-mini-260428', display_name: 'mini' }] });
+      }
+      promptText = JSON.parse(String(init?.body || '{}')).messages[1].content;
+      return Response.json({ choices: [{ message: { content: '现在刷新就行？' } }] });
+    });
+    const sampleRoute = createHostHandlers(dir2).find(({ path }) => path.endsWith('/speech-sample'));
+    await sampleRoute.fetch(new Request('http://localhost', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '我要效果好的那个' }),
+    }));
+    await route.fetch(new Request('http://localhost', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ assistant: '有两个方案可选。', zh: true, model: 'volcengine/doubao-seed-2-0-mini-260428' }),
+    }));
+    assert.match(promptText, /他平时真这么说过/);
+    assert.match(promptText, /我要效果好的那个/);
+  } finally {
+    rmSync(dir2, { recursive: true, force: true });
+  }
 });
 
 test('prompt-suggest sends handoff for action-back turns and never asks the user to redo it', async (t) => {

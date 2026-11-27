@@ -40,6 +40,7 @@ export function getDataDirs(baseDir) {
     settingsPath: join(root, 'settings.json'),
     wallpapersDir: join(root, 'wallpapers'),
     manifestPath: join(root, 'wallpapers', 'manifest.json'),
+    samplesPath: join(root, 'speech-samples.json'),
   };
 }
 
@@ -66,6 +67,34 @@ export async function writeHostSettings(dirs, data) {
   const clean = JSON.stringify(data, null, 2);
   await writeFile(dirs.settingsPath, clean, 'utf8');
   return data;
+}
+
+const MAX_SPEECH_SAMPLES = 40;
+const MAX_SAMPLE_CHARS = 60;
+
+export async function readSpeechSamples(dirs) {
+  try {
+    if (!existsSync(dirs.samplesPath)) return [];
+    const parsed = JSON.parse(await readFile(dirs.samplesPath, 'utf8'));
+    return Array.isArray(parsed) ? parsed.filter((x) => typeof x === 'string' && x.trim()).slice(-MAX_SPEECH_SAMPLES) : [];
+  } catch {
+    return [];
+  }
+}
+
+// 记下他真实发过的话，下次生成建议时作为「他平时怎么说」的参考
+export async function appendSpeechSample(dirs, text) {
+  const flatText = String(text || '').replace(/\s+/g, ' ').trim();
+  const firstSentence = flatText.split(/[。！？!?\n]/)[0].trim();
+  const clean = firstSentence.length >= 2 && firstSentence.length <= MAX_SAMPLE_CHARS ? firstSentence : '';
+  if (!clean) return await readSpeechSamples(dirs);
+  const current = await readSpeechSamples(dirs);
+  const next = current.filter((x) => x !== clean);
+  next.push(clean);
+  const trimmed = next.slice(-MAX_SPEECH_SAMPLES);
+  await ensureDirs(dirs);
+  await writeFile(dirs.samplesPath, JSON.stringify(trimmed, null, 2), 'utf8');
+  return trimmed;
 }
 
 async function readManifest(dirs) {
@@ -407,25 +436,14 @@ export function createHostHandlers(baseDir) {
             : [];
           const sysCore = zh
             ? [
-              '你要替用户（项目负责人）想「他接下来可能说什么」，给出 3 条方向完全不同的候选，每行一条。',
-              '他是谁：项目负责人，不是程序员。他不写代码，关心效果、进度、花多少钱、有什么风险；不懂就问「这是什么意思」。',
-              '说话风格：短、直接、不客套，2～18 个字。',
-              '三条必须落在不同方向，例如：①追问原理或含义 ②问影响和风险 ③问花费或值不值 ④要求换个更省事的做法 ⑤要求对比另一个方案 ⑥要求看效果或演示 ⑦质疑某个判断 ⑧推进到下一步。',
-              '硬性要求：',
-              '1. 只输出 3 行，不要编号、不要引号、不要解释；',
-              '2. 不要出现「好的」「我这就」「麻烦你」「辛苦了」这类客套；',
-              '3. 不要三行都在说「继续」「好了」这类放之四海皆准的空话，最多一行是这种；',
-              '4. 不要复述助手刚说的话，不要写函数名、报错原文这类只有程序员才说的词；',
-              '5. 每条不超过 18 个汉字，必须贴住这一轮的具体话题；',
-              '6. 第一行放最可能的那句，判断依据：助手说「改好了／测试通过／上线了」时他多半验收或让你继续；助手在讲原理或做对比时多半追问含义、影响或值不值；助手报错或卡住时多半让你直接修或问为什么；助手给了几个方案让他挑时多半直接点一个。',
-              '7. 后两行放另外两个不同方向，别和第一行同一个意思。',
+              '你要替这位用户想「他接下来可能说什么」，给 3 条候选，每行一条，直接输出，不要编号和引号。',
+              '他是谁：项目负责人，不写代码。他关心效果、进度、花多少钱、有什么风险；说话短、直接、不客套。',
+              '要求：三条各是一个不同的角度，别只换词；每条 20 字以内；贴住这一轮的具体话题；不用写函数名、报错原文这类只有程序员才说的词。',
             ]
             : [
-              "Think of what this project owner might say next; give 3 candidates, each on its own line, in clearly different directions.",
-              'He is a project owner, not a programmer: he cares about results, progress, cost and risk.',
-              'Style: short, direct, no pleasantries, 2-12 words each.',
-              'The three must differ in angle: ask meaning, ask impact/risk, ask cost, propose a simpler way, compare an alternative, ask for a demo, challenge a claim, or move on.',
-              "Rules: 3 lines only, no numbering, no quotes, no explanation; no filler; at most one of them may be a generic \"continue\"; do not restate the assistant; no developer jargon; stay on this turn's topic. Put the most likely line first.",
+              "Work out what this user might say next and give 3 candidates, one per line, no numbering and no quotes.",
+              'He is a project owner, not a programmer: he cares about results, progress, cost and risk, and speaks briefly and directly without pleasantries.',
+              "The three should take different angles, not reword one idea; keep each under 12 words; stay on this turn's topic; avoid developer jargon.",
             ];
           const sys = [
             ...sysCore,
@@ -435,7 +453,14 @@ export function createHostHandlers(baseDir) {
                 : 'Extra: the assistant handed an action back to him. All three lines assume he already did it and move on from there.']
               : []),
           ].join('\n');
+          const samples = await readSpeechSamples(dirs);
           let promptContent = user ? `用户：${user}\n\n助手：${assistant}` : `助手：${assistant}`;
+          if (samples.length > 0) {
+            const recent = samples.slice(-12);
+            promptContent += zh
+              ? `\n\n他平时真这么说过（学他的说法，别照抄）：\n- ${recent.join('\n- ')}`
+              : `\n\nThings he has actually typed before (match his voice, do not copy):\n- ${recent.join('\n- ')}`;
+          }
           if (exclude.length > 0) {
             promptContent += zh
               ? `\n\n这三条不要和下面重复，换别的方向：\n- ${exclude.join('\n- ')}`
@@ -480,6 +505,21 @@ export function createHostHandlers(baseDir) {
           return Response.json({ ok: texts.length > 0, text: texts[0] || '', texts });
         } catch (error) {
           return Response.json({ ok: false, error: error?.message || 'suggest failed' });
+        }
+      },
+    },
+    {
+      // 记录他真实发过的话，作为下次生成建议时的说话参考
+      path: '/api/dsh-obsidian-prism/speech-sample',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      async fetch(request) {
+        try {
+          const body = await request.json();
+          const samples = await appendSpeechSample(dirs, body?.text);
+          return Response.json({ ok: true, count: samples.length });
+        } catch (error) {
+          return Response.json({ ok: false, error: error?.message || 'Failed to store sample' }, { status: 400 });
         }
       },
     },

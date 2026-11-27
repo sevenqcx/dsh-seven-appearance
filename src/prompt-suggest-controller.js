@@ -365,6 +365,19 @@ export function createPromptSuggestController({ getSettings }) {
   let onWindowFocus = null;
   let mo = null;
 
+  let lastSampleSent = '';
+
+  function rememberHisOwnWords(text) {
+    const clean = String(text || '').trim();
+    if (clean.length < 2 || clean === lastSampleSent) return;
+    lastSampleSent = clean;
+    fetch('/api/dsh-obsidian-prism/speech-sample', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: clean }),
+    }).catch(() => {});
+  }
+
   const cacheBySig = new Map();
   const dismissedSigs = new Set();
   const failedSigs = new Set();
@@ -749,6 +762,7 @@ export function createPromptSuggestController({ getSettings }) {
       if (suggestion) hide();
       return;
     }
+    rememberHisOwnWords(ctx.user);
 
     const s = getSettings();
     const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
