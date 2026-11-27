@@ -29,33 +29,11 @@ import { buildStylesheet } from '../src/theme-css.js';
 import { isZhUi, resolveUiLang } from '../src/i18n.js';
 import { formatSelectionQuote } from '../src/selection-ask-controller.js';
 
-test('right-click selection opens a sidebar branch with an editable draft', async () => {
-  const { openSelectionInSidebar } = await import('../src/side-question.js');
-  const calls = [];
-  const sidebarRight = {
-    commandTarget: () => ({ sessionId: 'main' }),
-    openResource: (...args) => calls.push(args),
-  };
-  const sessions = { async fork(options) {
-    assert.deepEqual(options, { sessionId: 'main', increaseTitle: true });
-    return 'branch';
-  } };
-  await openSelectionInSidebar({ sidebarRight, sessions }, 'main', '选中的文字', 'explain', true);
-  assert.equal(calls.length, 1);
-  assert.match(calls[0][0], /^dsh-resource:\/\/obsidian-prism-question\/session\/branch$/);
-  assert.equal(calls[0][1].destination, 'sidebar');
-  assert.equal(calls[0][1].params.prompt, formatSelectionQuote('选中的文字', 'explain', true));
-  sidebarRight.commandTarget = () => ({ sessionId: 'other' });
-  await assert.rejects(openSelectionInSidebar({ sidebarRight, sessions }, 'main', '选中的文字', 'quote', true));
-  assert.equal(calls.length, 1);
-});
-
-test('selection quick-ask pill and context menu share one toggle and both open the sidebar', async () => {
+test('selection pill offers one Explain action beside the native quote surface', async () => {
   const { createSelectionAskController } = await import('../src/selection-ask-controller.js');
   const { createContextMenuController } = await import('../src/context-menu-controller.js');
 
   assert.equal('contextMenuEnabled' in DEFAULT_SETTINGS, false);
-  assert.equal('contextMenuEnabled' in sanitizeSettings({ contextMenuEnabled: false }), false);
 
   class FakeElement {
     constructor(tag = 'div', attrs = {}, parent = null) {
@@ -70,9 +48,12 @@ test('selection quick-ask pill and context menu share one toggle and both open t
       this.textContent = '';
       this.isConnected = false;
       this.href = attrs.href || '';
+      this.hidden = false;
+      this.rect = { left: 100, top: 100, right: 240, bottom: 134, width: 140, height: 34 };
     }
     setAttribute(k, v) { this.attrs[k] = String(v); }
     getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
     appendChild(child) {
       child.parentNode = this;
       child.isConnected = this.isConnected;
@@ -108,8 +89,8 @@ test('selection quick-ask pill and context menu share one toggle and both open t
           if (p === '[data-conversation-session]' && cur.getAttribute('data-conversation-session')) return cur;
           if (p === '[data-chat-flow]' && cur.getAttribute('data-chat-flow') != null) return cur;
           if (p === 'a[href]' && cur.tagName === 'A' && cur.href) return cur;
-          if (p === '.op-side-question' && cur.className.includes('op-side-question')) return cur;
           if (p === '.op-selection-pill' && cur.className.includes('op-selection-pill')) return cur;
+          if (p === '.op-explain' && cur.className.includes('op-explain')) return cur;
         }
         cur = cur.parentNode;
       }
@@ -119,7 +100,7 @@ test('selection quick-ask pill and context menu share one toggle and both open t
       if (sel === 'button') return this.children.find((c) => c.tagName === 'BUTTON') || null;
       return null;
     }
-    getBoundingClientRect() { return { left: 100, top: 100, right: 240, bottom: 134, width: 140, height: 34 }; }
+    getBoundingClientRect() { return this.rect; }
     focus() {}
   }
 
@@ -137,6 +118,9 @@ test('selection quick-ask pill and context menu share one toggle and both open t
   const conversation = new FakeElement('div', { 'data-conversation-session': 'sess-1', 'data-chat-flow': '1' }, body);
   const textNode = new FakeElement('p', {}, conversation);
   const linkNode = new FakeElement('a', { href: 'https://example.com' }, conversation);
+  // DSH 原生的「引用文本」按钮
+  const nativeSurface = new FakeElement('div', { 'data-text-interaction-surface': '1' }, conversation);
+  nativeSurface.rect = { left: 180, top: 200, right: 260, bottom: 232, width: 80, height: 32 };
 
   let currentSelection = null;
   globalThis.Element = FakeElement;
@@ -147,7 +131,7 @@ test('selection quick-ask pill and context menu share one toggle and both open t
     activeElement: null,
     createElement: (tag) => new FakeElement(tag),
     querySelector: () => null,
-    querySelectorAll: () => [],
+    querySelectorAll: (sel) => (sel === '[data-text-interaction-surface]' ? [nativeSurface] : []),
     addEventListener: (type, fn) => {
       if (!docListeners.has(type)) docListeners.set(type, []);
       docListeners.get(type).push(fn);
@@ -170,16 +154,15 @@ test('selection quick-ask pill and context menu share one toggle and both open t
   };
 
   let settings = sanitizeSettings({ enabled: true, selectionAskEnabled: true, uiLanguage: 'zh' });
-  const sideCalls = [];
-  const openSideQuestion = async (...args) => { sideCalls.push(args); };
-  const pillCtrl = createSelectionAskController({ getSettings: () => settings, openSideQuestion });
-  const menuCtrl = createContextMenuController({ getSettings: () => settings, openSideQuestion });
+  const explainCalls = [];
+  const openExplain = (args) => { explainCalls.push(args); };
+  const pillCtrl = createSelectionAskController({ getSettings: () => settings, openExplain });
+  const menuCtrl = createContextMenuController({ getSettings: () => settings, openExplain });
 
   try {
     pillCtrl.start();
     menuCtrl.start();
 
-    let cleared = 0;
     currentSelection = {
       rangeCount: 1,
       isCollapsed: false,
@@ -192,22 +175,25 @@ test('selection quick-ask pill and context menu share one toggle and both open t
         commonAncestorContainer: textNode,
         getClientRects: () => [{ left: 100, top: 200, right: 200, bottom: 220, width: 100, height: 20 }],
       }),
-      removeAllRanges: () => { cleared += 1; },
+      removeAllRanges: () => {},
     };
 
-    // Trigger selection pill and click "侧边追问"
     for (const fn of docListeners.get('pointerup') || []) fn({ target: textNode });
     await new Promise((r) => setTimeout(r, 60));
     const pill = body.children.find((c) => c.className === 'op-selection-pill');
-    assert.ok(pill);
-    const pillLabels = pill.children.map((b) => b.textContent);
-    assert.deepEqual(pillLabels, ['侧边追问', '侧边解释', '复制']);
-    pill.children[0].dispatch('click', { preventDefault() {}, stopPropagation() {} });
-    await Promise.resolve();
-    assert.deepEqual(sideCalls[0], ['sess-1', '核心结论', 'quote', true]);
-    assert.equal(cleared, 1);
+    assert.ok(pill, 'selection pill should appear');
+    assert.deepEqual(pill.children.map((b) => b.textContent), ['解释']);
+    // 贴在原生「引用文本」右侧
+    assert.equal(pill.getAttribute('data-placement'), 'native');
+    assert.equal(pill.style.left, '268px');
 
-    // Trigger right-click menu with selectionAskEnabled = true
+    pill.children[0].dispatch('click', { preventDefault() {}, stopPropagation() {} });
+    assert.equal(explainCalls.length, 1);
+    assert.equal(explainCalls[0].text, '核心结论');
+    assert.equal(explainCalls[0].anchor, textNode);
+    // 解释不碰会话：没有 session id、没有分支
+    assert.equal('sessionId' in explainCalls[0], false);
+
     for (const fn of docListeners.get('contextmenu') || []) {
       fn({ target: textNode, clientX: 120, clientY: 160, shiftKey: false, preventDefault() {}, stopPropagation() {} });
     }
@@ -215,13 +201,13 @@ test('selection quick-ask pill and context menu share one toggle and both open t
     assert.ok(menu);
     assert.deepEqual(
       menu.children.filter((c) => c.tagName === 'BUTTON').map((b) => b.textContent),
-      ['复制选中内容', '在侧边栏追问', '在侧边栏解释'],
+      ['复制选中内容', '解释这段'],
     );
-    menu.children.find((b) => b.textContent === '在侧边栏解释').dispatch('click', { preventDefault() {}, stopPropagation() {} });
-    await Promise.resolve();
-    assert.deepEqual(sideCalls[1], ['sess-1', '核心结论', 'explain', true]);
+    menu.children.find((b) => b.textContent === '解释这段').dispatch('click', { preventDefault() {}, stopPropagation() {} });
+    assert.equal(explainCalls.length, 2);
+    assert.equal(explainCalls[1].text, '核心结论');
 
-    // Turn off selectionAskEnabled: pill disappears, right-click hides side-ask but keeps regular actions
+    // 关掉开关：浮条消失，右键只留常规动作
     settings = sanitizeSettings({ enabled: true, selectionAskEnabled: false, uiLanguage: 'zh' });
     pillCtrl.refresh();
     menuCtrl.refresh();
@@ -246,6 +232,213 @@ test('selection quick-ask pill and context menu share one toggle and both open t
     globalThis.Element = prevEl;
     globalThis.requestAnimationFrame = prevRaf;
     globalThis.cancelAnimationFrame = prevCaf;
+  }
+});
+
+test('explain popover streams the answer, keeps one follow-up, and closes on an outside click', async () => {
+  const { createExplainPopover, readSelectionContext } = await import('../src/explain-popover.js');
+
+  class FakeEl {
+    constructor(tag = 'div') {
+      this.tagName = tag.toUpperCase();
+      this.nodeType = 1;
+      this.attrs = {};
+      this.children = [];
+      this.listeners = new Map();
+      this.parentNode = null;
+      this.className = '';
+      this.style = {};
+      this.hidden = false;
+      this.textContent = '';
+      this.value = '';
+      this.scrollTop = 0;
+      this.scrollHeight = 0;
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    append(...nodes) {
+      for (const n of nodes) {
+        n.parentNode = this;
+        this.children.push(n);
+      }
+    }
+    appendChild(n) { this.append(n); return n; }
+    removeChild(n) { this.children = this.children.filter((c) => c !== n); n.parentNode = null; }
+    remove() { this.parentNode?.removeChild(this); }
+    addEventListener(t, fn) {
+      if (!this.listeners.has(t)) this.listeners.set(t, []);
+      this.listeners.get(t).push(fn);
+    }
+    dispatch(t, ev = {}) { for (const fn of this.listeners.get(t) || []) fn(ev); }
+    contains(n) {
+      let cur = n;
+      while (cur) {
+        if (cur === this) return true;
+        cur = cur.parentNode;
+      }
+      return false;
+    }
+    getBoundingClientRect() { return { left: 120, top: 300, right: 420, bottom: 340, width: 300, height: 40 }; }
+    focus() {}
+    get textOf() {
+      return [this.textContent, ...this.children.map((c) => c.textContent ?? c.textOf ?? '')].join('');
+    }
+  }
+
+  const plain = (el) => String(el?.textContent || '') + (el?.children || []).map(plain).join('');
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevFetch = globalThis.fetch;
+  const docListeners = new Map();
+  const winListeners = new Map();
+  const body = new FakeEl('body');
+  body.isConnected = true;
+  globalThis.document = {
+    body,
+    createElement: (tag) => new FakeEl(tag),
+    addEventListener: (t, fn) => {
+      if (!docListeners.has(t)) docListeners.set(t, []);
+      docListeners.get(t).push(fn);
+    },
+    removeEventListener: (t, fn) => { docListeners.set(t, (docListeners.get(t) || []).filter((f) => f !== fn)); },
+  };
+  globalThis.window = {
+    innerWidth: 1400,
+    innerHeight: 900,
+    addEventListener: (t, fn) => {
+      if (!winListeners.has(t)) winListeners.set(t, []);
+      winListeners.get(t).push(fn);
+    },
+    removeEventListener: (t, fn) => { winListeners.set(t, (winListeners.get(t) || []).filter((f) => f !== fn)); },
+  };
+
+  const bubble = new FakeEl('div');
+  bubble.setAttribute('data-message-bubble', '1');
+  bubble.textContent = '另外提一句：这是第三方做的商业服务，不是官方直接运营的。';
+  const row = new FakeEl('div');
+  row.setAttribute('data-chat-flow-kind', 'assistant');
+  row.appendChild(bubble);
+
+  assert.equal(readSelectionContext(bubble).role, 'assistant');
+  assert.match(readSelectionContext(bubble).context, /第三方做的商业服务/);
+
+  const requests = [];
+  globalThis.fetch = async (url, options) => {
+    const payload = JSON.parse(options.body);
+    requests.push({ url, payload });
+    const answer = requests.length === 1 ? '这段是在说：这门生意是第三方做的。' : '它不归官方管，出问题找那家。';
+    const bytes = new TextEncoder().encode(answer);
+    return {
+      ok: true,
+      body: {
+        getReader: () => {
+          let sent = false;
+          return {
+            read: async () => {
+              if (sent) return { done: true, value: undefined };
+              sent = true;
+              return { done: false, value: bytes };
+            },
+          };
+        },
+      },
+    };
+  };
+
+  const pop = createExplainPopover({ getSettings: () => ({ enabled: true, selectionAskEnabled: true, uiLanguage: 'zh' }) });
+  try {
+    pop.start();
+    pop.show({ text: '第三方做的商业服务', anchor: bubble, rect: { left: 300, top: 400, right: 500, bottom: 430, width: 200, height: 30 } });
+    assert.equal(pop.isOpen(), true);
+    const host = body.children.find((c) => c.className === 'op-explain');
+    assert.ok(host, 'popover should mount');
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(requests.length, 1);
+    assert.equal(requests[0].url, '/api/dsh-obsidian-prism/explain');
+    assert.equal(requests[0].payload.text, '第三方做的商业服务');
+    assert.match(requests[0].payload.context, /第三方做的商业服务/);
+    assert.match(plain(host), /这门生意是第三方做的/);
+
+    // 追问：带上历史，再要一次回答
+    const input = host.children.flatMap((c) => c.children || []).find((c) => c.className === 'op-explain-input')
+      || (() => {
+        const form = host.children.find((c) => c.className === 'op-explain-form');
+        return form?.children?.[0];
+      })();
+    assert.ok(input, 'follow-up input should exist');
+    input.value = '那安不安全？';
+    const form = host.children.find((c) => c.className === 'op-explain-form');
+    form.dispatch('submit', { preventDefault() {} });
+    await new Promise((r) => setTimeout(r, 30));
+    assert.equal(requests.length, 2);
+    assert.equal(requests[1].payload.question, '那安不安全？');
+    assert.ok(Array.isArray(requests[1].payload.history) && requests[1].payload.history.length >= 2);
+    assert.match(plain(host), /出问题找那家/);
+
+    // 点外面就关
+    for (const fn of docListeners.get('pointerdown') || []) fn({ target: new FakeEl('div') });
+    assert.equal(pop.isOpen(), false);
+    assert.equal(body.children.find((c) => c.className === 'op-explain'), undefined);
+  } finally {
+    pop.dispose();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.fetch = prevFetch;
+  }
+});
+
+test('explain endpoint relays streamed deltas from the fastest model', async () => {
+  const dir = makeTempDir();
+  const prevFetch = globalThis.fetch;
+  try {
+    const handler = createHostHandlers(dir).find((h) => h.path === '/api/dsh-obsidian-prism/explain');
+    assert.ok(handler);
+    const seen = [];
+    globalThis.fetch = async (url, options = {}) => {
+      seen.push(String(url));
+      if (String(url).endsWith('/v1/models')) {
+        return new Response(JSON.stringify({ data: [{ id: 'local/qwen-flash', owned_by: 'local' }, { id: 'local/big' }] }), {
+          headers: { 'content-type': 'application/json' },
+        });
+      }
+      const body = JSON.parse(options.body);
+      assert.equal(body.stream, true);
+      assert.equal(body.model, 'local/qwen-flash');
+      assert.match(body.messages[0].content, /解释|explain/i);
+      assert.match(body.messages[1].content, /核心结论/);
+      const frames = [
+        'data: {"choices":[{"delta":{"content":"这段是在说"}}]}\n\n',
+        'data: {"choices":[{"delta":{"content":"：第三方做的服务。"}}]}\n\n',
+        'data: [DONE]\n\n',
+      ];
+      return new Response(new ReadableStream({
+        start(controller) {
+          for (const frame of frames) controller.enqueue(new TextEncoder().encode(frame));
+          controller.close();
+        },
+      }), { headers: { 'content-type': 'text/event-stream' } });
+    };
+    const res = await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '第三方做的商业服务', context: '整条消息：核心结论在下面。', zh: true }),
+    }));
+    assert.equal(res.status, 200);
+    assert.match(res.headers.get('content-type'), /text\/plain/);
+    assert.equal(await res.text(), '这段是在说：第三方做的服务。');
+    assert.ok(seen.some((u) => u.endsWith('/chat/completions')));
+
+    const empty = await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '   ' }),
+    }));
+    assert.equal(empty.status, 400);
+  } finally {
+    globalThis.fetch = prevFetch;
+    rmSync(dir, { recursive: true, force: true });
   }
 });
 
@@ -1445,18 +1638,13 @@ test('v0.3.0 settings defaults, sanitization, and scene presets include new opti
   assert.equal(eco.statusVialEnabled, false);
 });
 
-test('v0.3.0 selection quote formatter handles quote & explain modes in zh/en', () => {
-  const quoteEn = formatSelectionQuote('const x = 1;\nconst y = 2;', 'quote', false);
+test('v0.3.0 selection quote formatter quotes multi-line text into the composer', () => {
+  const quoteEn = formatSelectionQuote('const x = 1;\nconst y = 2;');
   assert.match(quoteEn, /^> const x = 1;\n> const y = 2;\n\n$/);
 
-  const explainZh = formatSelectionQuote('WebGL2 shader', 'explain', true);
-  assert.match(explainZh, /详细解释.*> WebGL2 shader/s);
-
-  const explainEn = formatSelectionQuote('WebGL2 shader', 'explain', false);
-  assert.match(explainEn, /Please explain.*> WebGL2 shader/s);
-
   const longText = 'a'.repeat(2100);
-  assert.equal(formatSelectionQuote(longText, 'quote', false), `> ${longText}\n\n`);
+  assert.equal(formatSelectionQuote(longText), `> ${longText}\n\n`);
+  assert.equal(formatSelectionQuote('   '), '');
 });
 
 test('v0.3.0 stylesheet includes selection pill, choreography, prism rim, status vial, searchable outline, and lang toggle', () => {
@@ -2372,14 +2560,14 @@ test('all circular and pill stylesheet rules opt out of global superellipse with
   );
 });
 
-test('main composer lookup ignores sidebar side-question cards across controllers', async () => {
+test('main composer lookup ignores right-sidebar conversation cards across controllers', async () => {
   const { findMainComposerCard, findComposerInput } = await import('../src/selection-ask-controller.js');
 
   const makeCard = (id, { sidebar = false, hidden = false } = {}) => {
     const editor = {
       id: `${id}-editor`,
       closest(sel) {
-        if (sidebar && sel.includes('.op-side-question')) return { className: 'op-side-question' };
+        if (sidebar && sel.includes('[data-sidebar-right-session]')) return { className: 'op-sidebar-card' };
         return null;
       },
     };
@@ -2387,8 +2575,8 @@ test('main composer lookup ignores sidebar side-question cards across controller
       id,
       hidden,
       closest(sel) {
-        if (sidebar && (sel.includes('.op-side-question') || sel.includes('[data-sidebar-right-session]'))) {
-          return { className: 'op-side-question' };
+        if (sidebar && sel.includes('[data-sidebar-right-session]')) {
+          return { className: 'op-sidebar-card' };
         }
         if (hidden && sel.includes('[hidden]')) return { hidden: true };
         return null;
@@ -2417,7 +2605,7 @@ test('main composer lookup ignores sidebar side-question cards across controller
   assert.equal(findMainComposerCard(fakeDoc), mainCard);
   assert.equal(findComposerInput(fakeDoc), mainCard._editor);
 
-  // If only a sidebar card exists, never hijack it as the main composer card
+  // If only a right-sidebar card exists, never hijack it as the main composer card
   const sidebarOnlyDoc = {
     querySelectorAll(sel) {
       return sel === '[data-composer-card]' ? [sidebarCard] : [];

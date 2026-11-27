@@ -1,7 +1,7 @@
 // Mascot stage controller: bridges Obsidian Prism's dual-mascot-rig onto DSH [data-composer-card]
 import { findMainComposerCard } from './selection-ask-controller.js';
 
-const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 function findMainConversationScope(doc) {
   if (!doc || typeof doc.querySelectorAll !== 'function') return doc;

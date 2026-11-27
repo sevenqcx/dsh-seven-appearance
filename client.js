@@ -12768,13 +12768,132 @@ html[data-op-effective-theme="light"] .op-effort-knob {
   to { transform: rotate(360deg); }
 }
 @keyframes op-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.op-side-question {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
+
+/* ── 划词解释小窗 ─────────────────────────────────────────────────────── */
+@keyframes op-explain-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
+.op-explain {
+  position: fixed;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1, var(--op-menu-bg, #16171c));
+  border: 1px solid color-mix(in srgb, var(--op-accent, #669DF6) 26%, var(--op-border-2, rgba(255,255,255,.14)));
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .45), inset 0 1px 0 var(--op-specular, rgba(255,255,255,.06));
+  color: var(--dsw-alias-label-primary, var(--op-fg-1, #F2F2F5));
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: op-explain-in 130ms var(--op-ease-out, ease-out);
+}
+.op-explain[hidden] { display: none !important; }
+.op-explain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.op-explain-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+}
+.op-explain-close {
+  all: unset;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+  font-size: 14px;
+}
+.op-explain-close:hover { background: var(--op-accent-soft, rgba(102,157,246,.18)); color: var(--dsw-alias-label-primary, var(--op-fg-1)); }
+.op-explain-quote {
+  margin: 0;
+  padding: 6px 9px;
+  max-height: 68px;
+  overflow: auto;
+  border-radius: 9px;
+  border-left: 2px solid color-mix(in srgb, var(--op-accent, #669DF6) 60%, transparent);
+  background: color-mix(in srgb, var(--op-accent, #669DF6) 7%, transparent);
+  color: var(--dsw-alias-label-secondary, var(--op-fg-2, #C4C4CE));
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.op-explain-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+  max-height: 232px;
+  padding-right: 2px;
+}
+.op-explain-item[data-role="user"] .op-explain-text {
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+  font-size: 12px;
+}
+.op-explain-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.op-explain-status {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+}
+.op-explain-status[hidden] { display: none; }
+.op-explain-status[data-tone="err"] { color: var(--op-status-err, #E5534B); }
+.op-explain-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  padding-top: 7px;
+}
+.op-explain-input {
+  flex: 1 1 auto;
+  min-height: 26px;
+  max-height: 76px;
+  resize: none;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-base, #0f1014) 60%, transparent);
+  color: var(--dsw-alias-label-primary, var(--op-fg-1));
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.op-explain-input:focus-visible { outline: none; border-color: color-mix(in srgb, var(--op-accent, #669DF6) 60%, transparent); }
+.op-explain-send {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 8px;
+  corner-shape: round;
+  background: var(--op-accent, #669DF6);
+  color: var(--op-accent-fg, #FFFFFF);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.op-explain-send:disabled { opacity: .55; cursor: default; }
 .op-context-menu {
   position: fixed; z-index: 2147483000; min-width: 168px; max-width: 280px; padding: 5px;
   border-radius: 10px; display: flex; flex-direction: column; gap: 1px;
@@ -12799,7 +12918,7 @@ html[data-op-effective-theme="light"] .op-effort-knob {
 // ── src/mascot-controller.js ──────────────────────────────────────────
 // Mascot stage controller: bridges Obsidian Prism's dual-mascot-rig onto DSH [data-composer-card]
 
-const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 function findMainConversationScope(doc) {
   if (!doc || typeof doc.querySelectorAll !== 'function') return doc;
@@ -15308,7 +15427,7 @@ function createWorkbenchController({ getSettings }) {
 // ── src/selection-ask-controller.js ──────────────────────────────────────────
 // Selection Quick-Ask & Quote Bar for dsh-obsidian-prism
 
-function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
+function formatSelectionQuote(rawText) {
   const cleaned = String(rawText ?? '')
     .replace(/\r\n?/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -15319,16 +15438,10 @@ function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
     .map((line) => (line.trim() ? `> ${line}` : '>'))
     .join('\n');
 
-  if (mode === 'explain') {
-    const lead = zh
-      ? '请结合当前上下文，详细解释下面这段内容：'
-      : 'Please explain this excerpt in detail based on our current context:';
-    return `${lead}\n${quoted}\n\n`;
-  }
   return `${quoted}\n\n`;
 }
 
-const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 function findMainComposerCard(doc = document) {
   if (!doc) return null;
@@ -15548,18 +15661,29 @@ function rectsOverlap(a, b, pad = 4) {
 }
 
 function getNativeTextSurfaceRect() {
-  const surfaces = document.querySelectorAll('[data-text-interaction-surface]');
+  if (typeof document?.querySelectorAll !== 'function') return null;
+  let surfaces;
+  try {
+    surfaces = document.querySelectorAll('[data-text-interaction-surface]');
+  } catch {
+    return null;
+  }
   for (const el of surfaces) {
-    if (!(el instanceof Element)) continue;
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width > 4 && r.height > 4) return r;
+    try {
+      if (typeof getComputedStyle === 'function') {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+      }
+      const r = el.getBoundingClientRect?.();
+      if (r && r.width > 4 && r.height > 4) return r;
+    } catch {
+      // skip unreadable node
+    }
   }
   return null;
 }
 
-function createSelectionAskController({ getSettings, openSideQuestion }) {
+function createSelectionAskController({ getSettings, openExplain }) {
   let pillEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -15568,6 +15692,8 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
   let pointerSelecting = false;
   let activeText = '';
   let activeSessionId = '';
+  let activeAnchor = null;
+  let activeRect = null;
   let disposed = false;
 
   const EXCLUDE_SELECTOR = [
@@ -15578,7 +15704,7 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
     '.op-drawer-backdrop',
     '.op-outline-rail',
     '.op-selection-pill',
-    '.op-side-question',
+    '.op-explain',
     '.op-status-vial',
     '.op-code-fold-bar',
     '[data-op-ui="1"]',
@@ -15618,6 +15744,8 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
   function hidePill() {
     activeText = '';
     activeSessionId = '';
+    activeAnchor = null;
+    activeRect = null;
     if (repositionRaf) {
       cancelAnimationFrame(repositionRaf);
       repositionRaf = 0;
@@ -15653,7 +15781,7 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
 
     const conversation = anchorEl.closest('[data-conversation-session]');
     const sessionId =
-      conversation && conversation.contains(focusEl) && !conversation.closest('.op-side-question')
+      conversation && conversation.contains(focusEl) && !conversation.closest('.op-explain')
         ? conversation.getAttribute('data-conversation-session') || ''
         : '';
     if (!sessionId) return null;
@@ -15665,120 +15793,73 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
     const vh = window.innerHeight || 800;
     if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
 
-    return { text, rect, sessionId };
+    return { text, rect, sessionId, anchorEl };
   }
 
-  async function copySelection(text, zh) {
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-      }
-      showToast(zh ? '已复制选中内容' : 'Copied selection', 'ok');
-    } catch {
-      showToast(zh ? '复制失败' : 'Copy failed', 'err');
-    }
-  }
-
-  function runAction(kind) {
+  function runAction() {
     const s = getSettings();
     const zh = isZhUi(s);
     const text = activeText;
-    const sessionId = activeSessionId;
+    const anchorEl = activeAnchor;
+    const rect = activeRect;
     if (!text) return;
-
-    if (kind === 'copy') {
-      copySelection(text, zh);
-      hidePill();
-      return;
-    }
-
     hidePill();
-    if (!sessionId || typeof openSideQuestion !== 'function') {
-      showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+    if (typeof openExplain !== 'function') {
+      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
       return;
     }
-    Promise.resolve(openSideQuestion(sessionId, text, kind, zh))
-      .then(() => {
-        try {
-          window.getSelection?.()?.removeAllRanges?.();
-        } catch {
-          // ignore
-        }
-      })
-      .catch(() => {
-        showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
-      });
+    try {
+      openExplain({ text, anchor: anchorEl, rect });
+    } catch {
+      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+    }
   }
 
   function positionPill(rect) {
     if (!pillEl || !pillEl.isConnected) return;
     const pillRect = pillEl.getBoundingClientRect();
-    const width = pillRect.width || 180;
-    const height = pillRect.height || 34;
+    const width = pillRect.width || 76;
+    const height = pillRect.height || 30;
     const vw = window.innerWidth || 1280;
     const vh = window.innerHeight || 800;
-    const gap = 10;
+    const gap = 8;
 
-    // Respect composer top edge so pill never lands under the composer card
     const composerCard = findMainComposerCard(document);
     const composerTop = composerCard ? composerCard.getBoundingClientRect().top : vh;
     const maxBottom = Math.min(vh - 12, composerTop - 8);
 
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(12, Math.min(vw - width - 12, centerX - width / 2));
-
-    const aboveTop = rect.top - height - gap;
-    const belowTop = rect.bottom + gap;
+    // DSH 原生的「引用文本」按钮就在选区上方；解释按钮直接贴到它右边
     const nativeRect = getNativeTextSurfaceRect();
-
-    let top = aboveTop;
-    let placement = 'above';
-
-    const aboveBox = { left, top: aboveTop, right: left + width, bottom: aboveTop + height };
-    const belowBox = { left, top: belowTop, right: left + width, bottom: belowTop + height };
-
-    const aboveFits = aboveTop >= 12;
-    const belowFits = belowTop + height <= maxBottom;
-    const collidesAbove = nativeRect ? rectsOverlap(aboveBox, nativeRect, 6) : false;
-    const collidesBelow = nativeRect ? rectsOverlap(belowBox, nativeRect, 6) : false;
-
-    if ((!aboveFits || collidesAbove) && belowFits && !collidesBelow) {
-      top = belowTop;
-      placement = 'below';
-    } else if (collidesAbove && nativeRect) {
-      // Stack cleanly above the native DSH quote surface if below doesn't fit
-      const stackedAbove = nativeRect.top - height - 8;
-      if (stackedAbove >= 12) {
-        top = stackedAbove;
-        placement = 'above';
-      } else if (belowFits) {
-        top = belowTop;
-        placement = 'below';
+    if (nativeRect) {
+      const left = nativeRect.right + gap;
+      const top = nativeRect.top + (nativeRect.height - height) / 2;
+      if (left + width <= vw - 12 && top >= 8 && top + height <= maxBottom) {
+        pillEl.setAttribute('data-placement', 'native');
+        pillEl.style.left = `${Math.round(left)}px`;
+        pillEl.style.top = `${Math.round(top)}px`;
+        return;
       }
-    } else if (!aboveFits) {
-      top = Math.max(12, Math.min(maxBottom - height, belowTop));
-      placement = 'below';
     }
 
-    pillEl.setAttribute('data-placement', placement);
+    const centerX = rect.left + rect.width / 2;
+    const left = Math.max(12, Math.min(vw - width - 12, centerX - width / 2));
+    const aboveTop = rect.top - height - gap;
+    const belowTop = rect.bottom + gap;
+    const aboveFits = aboveTop >= 12;
+    const belowFits = belowTop + height <= maxBottom;
+    const top = aboveFits || !belowFits ? Math.max(12, Math.min(maxBottom - height, aboveTop)) : belowTop;
+    pillEl.setAttribute('data-placement', aboveFits || !belowFits ? 'above' : 'below');
     pillEl.style.left = `${Math.round(left)}px`;
     pillEl.style.top = `${Math.round(top)}px`;
   }
 
-  function renderPill(text, rect, sessionId) {
+  function renderPill(text, rect, sessionId, anchorEl) {
     const s = getSettings();
     const zh = isZhUi(s);
     activeText = text;
     activeSessionId = sessionId;
+    activeAnchor = anchorEl || null;
+    activeRect = rect || null;
 
     if (!pillEl || !pillEl.isConnected) {
       pillEl = document.createElement('div');
@@ -15786,7 +15867,7 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
       pillEl.setAttribute('data-op-ui', '1');
       pillEl.setAttribute('role', 'toolbar');
       const keepSelection = (ev) => {
-        // Keep browser selection intact until button click completes
+        // 点按钮时别把选区弄丢，解释要用它
         ev.preventDefault();
         ev.stopPropagation();
       };
@@ -15795,31 +15876,23 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
       document.body.appendChild(pillEl);
     }
 
-    pillEl.setAttribute('aria-label', zh ? '划词快捷操作' : 'Selection quick actions');
+    pillEl.setAttribute('aria-label', zh ? '解释选中的文字' : 'Explain the selection');
     pillEl.textContent = '';
 
-    const actions = [
-      { id: 'quote', label: zh ? '侧边追问' : 'Ask in sidebar', primary: true },
-      { id: 'explain', label: zh ? '侧边解释' : 'Explain', primary: false },
-      { id: 'copy', label: zh ? '复制' : 'Copy', primary: false },
-    ];
-
-    for (const act of actions) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = act.primary ? 'op-selection-btn op-selection-btn-primary' : 'op-selection-btn';
-      btn.setAttribute('data-op-action', act.id);
-      btn.textContent = act.label;
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        runAction(act.id);
-      });
-      pillEl.appendChild(btn);
-    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'op-selection-btn op-selection-btn-primary';
+    btn.setAttribute('data-op-action', 'explain');
+    btn.textContent = zh ? '解释' : 'Explain';
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      runAction();
+    });
+    pillEl.appendChild(btn);
 
     positionPill(rect);
-    // Re-check once after next frame in case DSH's native quote surface appeared simultaneously
+    // 原生「引用文本」可能晚一帧才出现，再贴一次
     if (repositionRaf) cancelAnimationFrame(repositionRaf);
     repositionRaf = requestAnimationFrame(() => {
       repositionRaf = 0;
@@ -15844,7 +15917,7 @@ function createSelectionAskController({ getSettings, openSideQuestion }) {
       hidePill();
       return;
     }
-    renderPill(eligible.text, eligible.rect, eligible.sessionId);
+    renderPill(eligible.text, eligible.rect, eligible.sessionId, eligible.anchorEl);
   }
 
   function scheduleEvaluate(delay = 45) {
@@ -15987,7 +16060,7 @@ async function writeClipboard(text) {
   ta.remove();
 }
 
-function createContextMenuController({ getSettings, openSideQuestion }) {
+function createContextMenuController({ getSettings, openExplain }) {
   let menuEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -16022,11 +16095,11 @@ function createContextMenuController({ getSettings, openSideQuestion }) {
     }
   }
 
-  function insert(text, mode, zh) {
+  function insert(text, zh) {
     const composer = findComposerInput(document);
     if (!composer) return showToast(zh ? '未找到输入框' : 'Composer input not found', 'err');
-    if (insertTextIntoComposer(composer, formatSelectionQuote(text, mode, zh))) {
-      showToast(mode === 'explain' ? (zh ? '已填充解释追问' : 'Explain prompt inserted') : (zh ? '已引用到输入框' : 'Quoted into composer'));
+    if (insertTextIntoComposer(composer, formatSelectionQuote(text))) {
+      showToast(zh ? '已引用到输入框' : 'Quoted into composer');
     }
   }
 
@@ -16038,15 +16111,22 @@ function createContextMenuController({ getSettings, openSideQuestion }) {
       items.push({ label: zh ? '复制选中内容' : 'Copy selection', run: () => copy(selText, zh, { zh: '选中内容', en: 'selection' }) });
       if (selectionAskEnabled) {
         const conversation = target.closest('[data-conversation-session]');
-        const sessionId = conversation && !conversation.closest('.op-side-question')
-          ? conversation.getAttribute('data-conversation-session')
-          : null;
-        if (sessionId && conversation.contains(sel.anchorNode) && conversation.contains(sel.focusNode)) {
-          const open = (mode) => openSideQuestion(sessionId, selText, mode, zh).catch(() => {
-            showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+        const inside = Boolean(conversation)
+          && !conversation.closest('.op-explain')
+          && conversation.contains(sel.anchorNode)
+          && conversation.contains(sel.focusNode);
+        if (inside) {
+          const anchorEl = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement || target;
+          items.push({
+            label: zh ? '解释这段' : 'Explain this',
+            run: () => {
+              if (typeof openExplain !== 'function') {
+                showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+                return;
+              }
+              openExplain({ text: selText, anchor: anchorEl });
+            },
           });
-          items.push({ label: zh ? '在侧边栏追问' : 'Ask in the sidebar', run: () => open('quote') });
-          items.push({ label: zh ? '在侧边栏解释' : 'Explain in the sidebar', run: () => open('explain') });
         }
       }
     }
@@ -16062,7 +16142,7 @@ function createContextMenuController({ getSettings, openSideQuestion }) {
     if (path && /[\\/]/.test(path)) {
       items.push({ sep: true });
       items.push({ label: zh ? '复制文件路径' : 'Copy file path', run: () => copy(path, zh, { zh: '文件路径', en: 'path' }) });
-      items.push({ label: zh ? '在输入框中引用路径' : 'Mention path in composer', run: () => insert(path, 'quote', zh) });
+      items.push({ label: zh ? '在输入框中引用路径' : 'Mention path in composer', run: () => insert(path, zh) });
     }
 
     const pre = target.closest('pre');
@@ -16080,7 +16160,7 @@ function createContextMenuController({ getSettings, openSideQuestion }) {
       if (txt) {
         items.push({ sep: true });
         items.push({ label: zh ? '复制整条消息' : 'Copy message', run: () => copy(txt, zh, { zh: '整条消息', en: 'message' }) });
-        items.push({ label: zh ? '引用整条消息' : 'Quote message', run: () => insert(txt, 'quote', zh) });
+        items.push({ label: zh ? '引用整条消息' : 'Quote message', run: () => insert(txt, zh) });
       }
     }
 
@@ -16183,113 +16263,388 @@ function createContextMenuController({ getSettings, openSideQuestion }) {
   return { start, refresh, dispose };
 }
 
-// ── src/side-question.js ──────────────────────────────────────────
-const SIDE_QUESTION_KIND = 'obsidian-prism-question';
-const SIDE_QUESTION_ENTRY = 'dsh-obsidian-prism:side-question';
-const SIDE_QUESTION_SLOT = 'obsidian-prism.side-question.conversation';
-const SIDE_QUESTION_ADDRESS = `dsh-resource://${SIDE_QUESTION_KIND}/session/`;
+// ── src/explain-popover.js ──────────────────────────────────────────
+// Inline explain popover for dsh-obsidian-prism.
+//
+// 划词 → 在原生「引用文本」右边点「解释」→ 选区旁边弹出一个小窗，用最快的模型
+// 结合上下文把这段讲清楚。它不建会话、不建分支、不往会话列表里留东西；
+// 想继续问就在小窗里接着打，点外面、按 Esc 或点叉就关掉。
 
-async function openSelectionInSidebar({ sidebarRight, sessions }, sessionId, text, mode, zh) {
-  const prompt = formatSelectionQuote(text, mode, zh);
-  const isCurrent = () => sidebarRight.commandTarget(null)?.sessionId === sessionId;
-  if (!prompt || !sessionId || !isCurrent()) throw new Error('Side question requires the active conversation');
-  const childId = await sessions.fork({ sessionId, increaseTitle: true });
-  if (!isCurrent()) throw new Error('Active conversation changed');
-  sidebarRight.openResource(`${SIDE_QUESTION_ADDRESS}${encodeURIComponent(childId)}`, {
-    kind: SIDE_QUESTION_KIND,
-    destination: 'sidebar',
-    params: { prompt },
-  });
+const HOST_CLASS = 'op-explain';
+const MAX_CONTEXT = 2400;
+const PANEL_WIDTH = 400;
+const PANEL_MIN_WIDTH = 240;
+const PANEL_MAX_HEIGHT = 340;
+const GAP = 8;
+
+const TOOLBAR_TEXT = new Set(['复制', '赞', '踩', '分享', '引用', 'Copy', 'Like', 'Dislike', 'Share', 'Quote']);
+
+function textOf(el) {
+  return String(el?.innerText || el?.textContent || '')
+    .replace(/\u00a0/g, ' ')
+    .replace(/[ \t]+\n/g, '\n')
+    .trim();
 }
 
-function readSideQuestionSession(address) {
-  if (!address.startsWith(SIDE_QUESTION_ADDRESS)) return null;
-  const segment = address.slice(SIDE_QUESTION_ADDRESS.length);
-  if (!segment || /[/?#]/.test(segment)) return null;
-  try { return decodeURIComponent(segment); } catch { return null; }
+/** 去掉模型爱用的 **加粗** 和 `反引号` 标记，小窗里按纯文本显示。 */
+function plainify(text) {
+  return String(text || '')
+    .replace(/\*\*([^*]+)\*\*/g, '$1')
+    .replace(/`([^`]+)`/g, '$1')
+    .replace(/^\s*#{1,6}\s+/gm, '');
 }
 
-function registerSideQuestion(ctx, React, store) {
-  const { sessions, sidebarRightTabs, resources, slots, conversation } = ctx;
-  const { createElement: h, useEffect, useState } = React;
-  const initialized = new WeakSet();
-
-  function ChatView({ renderSlot }) {
-    return renderSlot('conversation.session', { view: 'chat' });
+/**
+ * 选中文字所在的那条消息：用消息气泡的正文做「上下文」，不含下面的复制/赞踩工具条。
+ * @param anchorEl - 选区起点所在的元素。
+ * @returns 该消息的角色与正文（超长截断）。
+ */
+function readSelectionContext(anchorEl) {
+  let node = anchorEl && anchorEl.nodeType === 1 ? anchorEl : anchorEl?.parentElement || null;
+  let bubble = null;
+  let row = null;
+  while (node) {
+    if (!bubble && node.getAttribute?.('data-message-bubble')) bubble = node;
+    if (node.getAttribute?.('data-chat-flow-kind')) {
+      row = node;
+      break;
+    }
+    node = node.parentElement || null;
   }
+  const role = row?.getAttribute?.('data-chat-flow-kind') === 'user' ? 'user' : 'assistant';
+  const source = bubble || row || null;
+  let context = textOf(source);
+  if (!context && row) {
+    context = String(row.innerText || row.textContent || '')
+      .split('\n')
+      .filter((line) => line.trim() && !TOOLBAR_TEXT.has(line.trim()))
+      .join('\n')
+      .trim();
+  }
+  return { role, context: context.slice(0, MAX_CONTEXT) };
+}
 
-  function QuestionConversation({ renderFactorySlot }) {
-    return renderFactorySlot('conversation.content', { variant: 'embedded', phase: 'active', hero: false }, {
-      slots: { views: ChatView },
+/**
+ * 划词解释小窗。
+ * @param options.getSettings - 读取插件设置（只用来决定界面语言）。
+ * @returns 显示、关闭、启动与销毁接口。
+ */
+function createExplainPopover({ getSettings }) {
+  let host = null;
+  let headEl = null;
+  let quoteEl = null;
+  let threadEl = null;
+  let formEl = null;
+  let inputEl = null;
+  let sendEl = null;
+  let statusEl = null;
+  let busy = false;
+  let abort = null;
+  let run = 0;
+  let anchor = null;
+  let quote = '';
+  let context = '';
+  let role = 'assistant';
+  let history = [];
+  let disposed = false;
+  let started = false;
+
+  const zh = () => isZhUi(getSettings());
+
+  function ensureHost() {
+    if (host && host.isConnected !== false) return host;
+    host = document.createElement('div');
+    host.className = HOST_CLASS;
+    host.setAttribute('data-op-ui', '1');
+    host.setAttribute('translate', 'no');
+    host.setAttribute('role', 'dialog');
+    host.addEventListener('pointerdown', (ev) => ev.stopPropagation());
+    host.addEventListener('mousedown', (ev) => ev.stopPropagation());
+
+    headEl = document.createElement('div');
+    headEl.className = 'op-explain-head';
+    const title = document.createElement('span');
+    title.className = 'op-explain-title';
+    title.textContent = zh() ? '解释' : 'Explain';
+    const close = document.createElement('button');
+    close.type = 'button';
+    close.className = 'op-explain-close';
+    close.setAttribute('aria-label', zh() ? '关闭解释' : 'Close explanation');
+    close.textContent = '×';
+    close.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      hide();
     });
-  }
+    headEl.append(title, close);
 
-  function QuestionTab({ useTabInfo, useResource, SessionProvider, renderSlot }) {
-    const { tab } = useTabInfo();
-    const resource = useResource(tab.contentId);
-    const prompt = tab.navigation.params?.prompt;
-    const reference = resource.value;
-    const [failed, setFailed] = useState(false);
+    quoteEl = document.createElement('blockquote');
+    quoteEl.className = 'op-explain-quote';
 
-    useEffect(() => {
-      if (!reference || typeof prompt !== 'string' || !prompt) return;
-      let active = true;
-      reference.ready.then(() => {
-        if (!active || initialized.has(reference)) return;
-        const binding = sessions.binding(reference.sessionId);
-        if (!binding) throw new Error('Sidebar session is not retained');
-        if (conversation.input.requestDraftInitialization(binding, { prompt, whenDraftExists: 'keep' }) === 'blocked') {
-          throw new Error('Sidebar draft could not be initialized');
-        }
-        initialized.add(reference);
-        // 草稿填好后把焦点送进侧栏输入框，按一次回车就能发送
-        setTimeout(() => {
-          const el = document.querySelector('.op-side-question [data-composer-input]');
-          el?.focus?.();
-        }, 80);
-      }).catch(() => { if (active) setFailed(true); });
-      return () => { active = false; };
-    }, [reference, prompt]);
+    threadEl = document.createElement('div');
+    threadEl.className = 'op-explain-thread';
 
-    const zh = isZhUi(store.get());
-    return h('div', { className: 'op-side-question' },
-      (failed || resource.status === 'failed') && h('p', { role: 'status' }, zh ? '侧边追问未能载入。' : 'Could not load the sidebar question.'),
-      reference && h(SessionProvider, { session: reference }, renderSlot(SIDE_QUESTION_SLOT, {})),
-    );
-  }
+    statusEl = document.createElement('p');
+    statusEl.className = 'op-explain-status';
+    statusEl.setAttribute('role', 'status');
 
-  ctx.effect(() => resources.register({
-    protocol: SIDE_QUESTION_KIND,
-    async *open(address, { signal }) {
-      const sessionId = readSideQuestionSession(address);
-      if (!sessionId || signal.aborted) return;
-      const reference = sessions.retain(sessionId, { source: 'sidebarChat', signal });
-      const closed = new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
-      try {
-        await reference.ready;
-        if (signal.aborted) return;
-        yield { ok: true, value: reference };
-        await closed;
-      } catch (error) {
-        if (!signal.aborted) yield { ok: false, error };
-      } finally {
-        reference.release();
+    formEl = document.createElement('form');
+    formEl.className = 'op-explain-form';
+    inputEl = document.createElement('textarea');
+    inputEl.className = 'op-explain-input';
+    inputEl.rows = 1;
+    inputEl.placeholder = zh() ? '接着问…' : 'Ask a follow-up…';
+    inputEl.addEventListener('keydown', (ev) => {
+      if (ev.key === 'Enter' && !ev.shiftKey) {
+        ev.preventDefault();
+        submit();
       }
-    },
-  }), SIDE_QUESTION_ENTRY);
-  ctx.effect(() => sidebarRightTabs.register({
-    id: SIDE_QUESTION_ENTRY,
-    kind: SIDE_QUESTION_KIND,
-    patterns: [`${SIDE_QUESTION_ADDRESS}**`],
-    canOpen: (address) => Boolean(readSideQuestionSession(address)),
-    title: () => isZhUi(store.get()) ? '侧边追问' : 'Side question',
-  }), `${SIDE_QUESTION_ENTRY}: tab`);
-  slots.inject('sidebar.right.pane.tab', () => slots.register({
-    name: 'sidebar.right.pane.tab',
-    key: SIDE_QUESTION_ENTRY,
-    children: { [SIDE_QUESTION_SLOT]: { kind: 'single', scope: 'session' } },
-  }, QuestionTab));
-  slots.inject(SIDE_QUESTION_SLOT, () => slots.register({ name: SIDE_QUESTION_SLOT }, QuestionConversation));
+    });
+    sendEl = document.createElement('button');
+    sendEl.type = 'submit';
+    sendEl.className = 'op-explain-send';
+    sendEl.textContent = zh() ? '问' : 'Ask';
+    formEl.append(inputEl, sendEl);
+    formEl.addEventListener('submit', (ev) => {
+      ev.preventDefault();
+      submit();
+    });
+
+    host.append(headEl, quoteEl, threadEl, statusEl, formEl);
+    document.body.appendChild(host);
+    return host;
+  }
+
+  function setStatus(text, tone = '') {
+    if (!statusEl) return;
+    statusEl.textContent = text || '';
+    statusEl.setAttribute('data-tone', text ? tone : '');
+    statusEl.hidden = !text;
+  }
+
+  function appendTurn(kind, text) {
+    const item = document.createElement('div');
+    item.className = 'op-explain-item';
+    item.setAttribute('data-role', kind);
+    const body = document.createElement('p');
+    body.className = 'op-explain-text';
+    body.textContent = text || '';
+    item.appendChild(body);
+    threadEl.appendChild(item);
+    return body;
+  }
+
+  function scrollToEnd() {
+    if (threadEl) threadEl.scrollTop = threadEl.scrollHeight;
+  }
+
+  function place(rect) {
+    if (!host || !rect) return;
+    const viewWidth = window.innerWidth || 1280;
+    const viewHeight = window.innerHeight || 800;
+    const width = Math.max(PANEL_MIN_WIDTH, Math.min(PANEL_WIDTH, viewWidth - 24));
+    host.style.width = `${width}px`;
+    const below = rect.bottom + GAP;
+    const above = rect.top - GAP - PANEL_MAX_HEIGHT;
+    const top = below + PANEL_MAX_HEIGHT <= viewHeight - 12 || above < 12 ? below : above;
+    const left = Math.max(12, Math.min(rect.left, viewWidth - width - 12));
+    host.style.left = `${Math.round(left)}px`;
+    host.style.top = `${Math.round(Math.max(12, Math.min(top, viewHeight - 96)))}px`;
+    host.style.maxHeight = `${Math.max(180, Math.min(PANEL_MAX_HEIGHT, viewHeight - top - 24))}px`;
+  }
+
+  function clearThread() {
+    if (!threadEl) return;
+    while (threadEl.firstChild) threadEl.removeChild(threadEl.firstChild);
+  }
+
+  function abortRun() {
+    run += 1;
+    busy = false;
+    if (abort) {
+      try {
+        abort.abort();
+      } catch {
+        // ignore
+      }
+      abort = null;
+    }
+  }
+
+  async function ask(question) {
+    if (busy) return;
+    const seq = ++run;
+    busy = true;
+    if (sendEl) sendEl.disabled = true;
+    setStatus(zh() ? '正在解释…' : 'Reading…');
+    const answerEl = appendTurn('assistant', '');
+    scrollToEnd();
+    abort = typeof AbortController === 'function' ? new AbortController() : null;
+    try {
+      const res = await fetch('/api/dsh-obsidian-prism/explain', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({
+          text: quote,
+          context,
+          role,
+          zh: zh(),
+          ...(question ? { question } : {}),
+          ...(history.length ? { history } : {}),
+        }),
+        ...(abort ? { signal: abort.signal } : {}),
+      });
+      if (!res.ok) throw new Error(`http ${res.status}`);
+      let raw = '';
+      if (res.body && typeof res.body.getReader === 'function') {
+        const reader = res.body.getReader();
+        const decoder = new TextDecoder();
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          if (seq !== run) return;
+          raw += decoder.decode(value, { stream: true });
+          answerEl.textContent = plainify(raw);
+          scrollToEnd();
+        }
+        raw += decoder.decode();
+      } else {
+        raw = await res.text();
+      }
+      if (seq !== run) return;
+      const answer = plainify(raw).trim();
+      answerEl.textContent = answer || (zh() ? '没读出结果，再问一次试试。' : 'No answer, try again.');
+      if (answer) {
+        history = [
+          ...history.slice(-6),
+          { role: 'user', content: question || (zh() ? '解释一下这段是什么意思。' : 'Explain what this passage means.') },
+          { role: 'assistant', content: answer },
+        ];
+      }
+      setStatus('');
+    } catch (error) {
+      if (seq !== run) return;
+      answerEl.textContent = '';
+      if (answerEl.parentNode) answerEl.parentNode.remove();
+      setStatus(zh() ? '解释没拿到结果，再点一次试试。' : 'Could not get an answer, try again.', 'err');
+    } finally {
+      if (seq === run) {
+        busy = false;
+        abort = null;
+        if (sendEl) sendEl.disabled = false;
+        scrollToEnd();
+      }
+    }
+  }
+
+  function submit() {
+    const question = String(inputEl?.value || '').trim();
+    if (!question || busy) return;
+    inputEl.value = '';
+    appendTurn('user', question);
+    scrollToEnd();
+    ask(question);
+  }
+
+  function show({ text, anchor: anchorEl, rect }) {
+    const value = String(text || '').trim();
+    if (!value || disposed) return;
+    abortRun();
+    const settings = getSettings();
+    if (!settings?.enabled || !settings?.selectionAskEnabled) return;
+    ensureHost();
+    const info = readSelectionContext(anchorEl);
+    anchor = anchorEl || null;
+    quote = value;
+    context = info.context;
+    role = info.role;
+    history = [];
+    busy = false;
+    clearThread();
+    if (quoteEl) quoteEl.textContent = value;
+    setStatus('');
+    host.setAttribute('data-visible', '1');
+    host.hidden = false;
+    place(rect || rectOf(anchorEl));
+    ask('');
+  }
+
+  function rectOf(el) {
+    const r = el?.getBoundingClientRect?.();
+    if (!r || (r.width === 0 && r.height === 0)) return { left: 120, top: 120, right: 320, bottom: 150, width: 200, height: 30 };
+    return r;
+  }
+
+  function hide() {
+    abortRun();
+    if (host) {
+      host.removeAttribute('data-visible');
+      host.hidden = true;
+      host.remove();
+    }
+    host = null;
+    headEl = null;
+    quoteEl = null;
+    threadEl = null;
+    formEl = null;
+    inputEl = null;
+    sendEl = null;
+    statusEl = null;
+    quote = '';
+    context = '';
+    history = [];
+    anchor = null;
+  }
+
+  function isOpen() {
+    return Boolean(host && host.isConnected !== false && !host.hidden);
+  }
+
+  const onPointerDown = (ev) => {
+    if (!isOpen()) return;
+    const target = ev?.target;
+    if (host && target && host.contains && host.contains(target)) return;
+    hide();
+  };
+
+  const onKeyDown = (ev) => {
+    if (!isOpen()) return;
+    if (ev.key === 'Escape') {
+      ev.stopPropagation();
+      hide();
+    }
+  };
+
+  const onScrollOrResize = () => {
+    if (!isOpen() || !anchor) return;
+    place(rectOf(anchor));
+  };
+
+  function start() {
+    if (started || disposed) return;
+    started = true;
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('scroll', onScrollOrResize, true);
+    window.addEventListener('resize', onScrollOrResize);
+  }
+
+  function refresh() {
+    const settings = getSettings();
+    if (!settings?.enabled && isOpen()) hide();
+  }
+
+  function dispose() {
+    disposed = true;
+    started = false;
+    document.removeEventListener('pointerdown', onPointerDown, true);
+    document.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('scroll', onScrollOrResize, true);
+    window.removeEventListener('resize', onScrollOrResize);
+    hide();
+  }
+
+  return { show, hide, isOpen, start, refresh, dispose };
 }
 
 // ── src/prompt-suggest-controller.js ──────────────────────────────────────────
@@ -16324,7 +16679,7 @@ function textOf(el) {
   return String(el?.innerText || el?.textContent || '').replace(/\s+\n/g, '\n').trim();
 }
 
-const SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 function setBoundedMap(map, key, value, max = MAX_CACHE_ENTRIES) {
   if (!key) return;
@@ -17290,7 +17645,7 @@ function createPromptSuggestController({ getSettings }) {
     '[aria-modal="true"]',
     '.op-drawer',
     '[data-sidebar-right-session]',
-    '.op-side-question',
+    '.op-explain',
   ].join(', ');
 
   const TAB_YIELD_OVERLAY_SEL =
@@ -21711,8 +22066,8 @@ const COPY = {
     secMascot: '像素伙伴舞台',
     mascotHint: '驻留在输入框上沿，可拖拽、互动，回复时会进入工作动画（含 Deepy 像素鲸鱼）',
     secWallpaper: '日常效率工作台与本地壁纸',
-    selectionAsk: '划词追问',
-    selectionAskSub: '选中对话文字后，通过浮条或右键在右侧栏追问、解释或复制；按住 Shift 右键可打开系统菜单',
+    selectionAsk: '划词解释',
+    selectionAskSub: '选中对话文字后，在「引用文本」右边点「解释」，最快的模型结合上下文就地讲清，可继续追问；不建会话、不建分支，点外面即关。按住 Shift 右键可打开系统菜单',
     promptSuggest: '下一步提示词推荐',
     promptSuggestSub: '回复结束后在空输入框给出建议，按 Tab 填入、Shift+Tab 在三条不同方向的候选间切换',
     promptSuggestModel: '推荐生成方式',
@@ -21798,8 +22153,8 @@ const COPY = {
     secMascot: 'Pixel Mascot Stage',
     mascotHint: 'Interactive pixel companions perched above the composer (including Deepy whale)',
     secWallpaper: 'Productivity Workbench & Wallpaper',
-    selectionAsk: 'Selection Quick-Ask',
-    selectionAskSub: 'Select conversation text to ask, explain in the sidebar, or copy via the floating bar or right-click menu. Hold Shift for the system menu.',
+    selectionAsk: 'Selection Explain',
+    selectionAskSub: 'Select conversation text, then click Explain beside Quote: the fastest model explains it in place, with follow-ups. No session or branch is created, and it closes on an outside click. Hold Shift for the system menu.',
     promptSuggest: 'Next-Prompt Suggestion',
     promptSuggestSub: 'Ghost follow-up in the empty composer; Tab to accept, Shift+Tab cycles three different angles',
     promptSuggestModel: 'Suggestion Engine',
@@ -23288,15 +23643,6 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
     inject: ['slots'],
     apply(ctx) {
       const store = createSettingsStore();
-      let sideQuestion = null;
-      ctx.inject(['sessions', 'sidebarRight', 'sidebarRightTabs', 'resources', 'conversation'], (scope) => {
-        registerSideQuestion(scope, React, store);
-        scope.effect(() => {
-          const open = (sessionId, text, mode, zh) => openSelectionInSidebar(scope, sessionId, text, mode, zh);
-          sideQuestion = open;
-          return () => { if (sideQuestion === open) sideQuestion = null; };
-        }, 'dsh-obsidian-prism: side question action');
-      });
       const { StudioPanel, FloatingStudioHost } = createStudioComponents({ React, createPortal, store });
       const ObsidianPrismModelPicker = createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, store });
 
@@ -23330,9 +23676,10 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         const effectsCtrl = createEffectsController({ getSettings });
         const rippleCtrl = createRippleController({ getRippleCore, getSettings });
         const workbenchCtrl = createWorkbenchController({ getSettings });
-        const openSideQuestion = (...args) => sideQuestion ? sideQuestion(...args) : Promise.reject(new Error('Sidebar unavailable'));
-        const selectionAskCtrl = createSelectionAskController({ getSettings, openSideQuestion });
-        const contextMenuCtrl = createContextMenuController({ getSettings, openSideQuestion });
+        const explainPopover = createExplainPopover({ getSettings });
+        const openExplain = (args) => explainPopover.show(args);
+        const selectionAskCtrl = createSelectionAskController({ getSettings, openExplain });
+        const contextMenuCtrl = createContextMenuController({ getSettings, openExplain });
         const promptSuggestCtrl = createPromptSuggestController({ getSettings });
         const choreographyCtrl = createChoreographyController({ getSettings });
         const prismRimCtrl = createPrismRimController({ getSettings });
@@ -23368,6 +23715,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           workbenchCtrl.refresh();
           selectionAskCtrl.refresh();
           contextMenuCtrl.refresh();
+          explainPopover.refresh();
           promptSuggestCtrl.refresh();
           choreographyCtrl.refresh();
           prismRimCtrl.refresh();
@@ -23383,6 +23731,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         workbenchCtrl.start();
         selectionAskCtrl.start();
         contextMenuCtrl.start();
+        explainPopover.start();
         promptSuggestCtrl.start();
         choreographyCtrl.start();
         prismRimCtrl.start();
@@ -23426,6 +23775,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           safeDispose(() => choreographyCtrl.dispose());
           safeDispose(() => selectionAskCtrl.dispose());
           safeDispose(() => contextMenuCtrl.dispose());
+          safeDispose(() => explainPopover.dispose());
           safeDispose(() => promptSuggestCtrl.dispose());
           safeDispose(() => workbenchCtrl.dispose());
           safeDispose(() => mascotCtrl.dispose());

@@ -29,7 +29,7 @@ const modules = [
   'src/workbench-controller.js',
   'src/selection-ask-controller.js',
   'src/context-menu-controller.js',
-  'src/side-question.js',
+  'src/explain-popover.js',
   'src/prompt-suggest-controller.js',
   'src/choreography-controller.js',
   'src/prism-rim-controller.js',

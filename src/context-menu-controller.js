@@ -29,7 +29,7 @@ async function writeClipboard(text) {
   ta.remove();
 }
 
-export function createContextMenuController({ getSettings, openSideQuestion }) {
+export function createContextMenuController({ getSettings, openExplain }) {
   let menuEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -64,11 +64,11 @@ export function createContextMenuController({ getSettings, openSideQuestion }) {
     }
   }
 
-  function insert(text, mode, zh) {
+  function insert(text, zh) {
     const composer = findComposerInput(document);
     if (!composer) return showToast(zh ? '未找到输入框' : 'Composer input not found', 'err');
-    if (insertTextIntoComposer(composer, formatSelectionQuote(text, mode, zh))) {
-      showToast(mode === 'explain' ? (zh ? '已填充解释追问' : 'Explain prompt inserted') : (zh ? '已引用到输入框' : 'Quoted into composer'));
+    if (insertTextIntoComposer(composer, formatSelectionQuote(text))) {
+      showToast(zh ? '已引用到输入框' : 'Quoted into composer');
     }
   }
 
@@ -80,15 +80,22 @@ export function createContextMenuController({ getSettings, openSideQuestion }) {
       items.push({ label: zh ? '复制选中内容' : 'Copy selection', run: () => copy(selText, zh, { zh: '选中内容', en: 'selection' }) });
       if (selectionAskEnabled) {
         const conversation = target.closest('[data-conversation-session]');
-        const sessionId = conversation && !conversation.closest('.op-side-question')
-          ? conversation.getAttribute('data-conversation-session')
-          : null;
-        if (sessionId && conversation.contains(sel.anchorNode) && conversation.contains(sel.focusNode)) {
-          const open = (mode) => openSideQuestion(sessionId, selText, mode, zh).catch(() => {
-            showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+        const inside = Boolean(conversation)
+          && !conversation.closest('.op-explain')
+          && conversation.contains(sel.anchorNode)
+          && conversation.contains(sel.focusNode);
+        if (inside) {
+          const anchorEl = sel.anchorNode?.nodeType === 1 ? sel.anchorNode : sel.anchorNode?.parentElement || target;
+          items.push({
+            label: zh ? '解释这段' : 'Explain this',
+            run: () => {
+              if (typeof openExplain !== 'function') {
+                showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+                return;
+              }
+              openExplain({ text: selText, anchor: anchorEl });
+            },
           });
-          items.push({ label: zh ? '在侧边栏追问' : 'Ask in the sidebar', run: () => open('quote') });
-          items.push({ label: zh ? '在侧边栏解释' : 'Explain in the sidebar', run: () => open('explain') });
         }
       }
     }
@@ -104,7 +111,7 @@ export function createContextMenuController({ getSettings, openSideQuestion }) {
     if (path && /[\\/]/.test(path)) {
       items.push({ sep: true });
       items.push({ label: zh ? '复制文件路径' : 'Copy file path', run: () => copy(path, zh, { zh: '文件路径', en: 'path' }) });
-      items.push({ label: zh ? '在输入框中引用路径' : 'Mention path in composer', run: () => insert(path, 'quote', zh) });
+      items.push({ label: zh ? '在输入框中引用路径' : 'Mention path in composer', run: () => insert(path, zh) });
     }
 
     const pre = target.closest('pre');
@@ -122,7 +129,7 @@ export function createContextMenuController({ getSettings, openSideQuestion }) {
       if (txt) {
         items.push({ sep: true });
         items.push({ label: zh ? '复制整条消息' : 'Copy message', run: () => copy(txt, zh, { zh: '整条消息', en: 'message' }) });
-        items.push({ label: zh ? '引用整条消息' : 'Quote message', run: () => insert(txt, 'quote', zh) });
+        items.push({ label: zh ? '引用整条消息' : 'Quote message', run: () => insert(txt, zh) });
       }
     }
 

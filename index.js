@@ -375,6 +375,94 @@ function pickFastDefaultModel(models, envPreferred) {
   return models[0]?.id || envPreferred || 'group/fastest-first';
 }
 
+// 「解释」要的是最短时间出结果：固定走最快的一档，不跟会话模型走
+const EXPLAIN_MAX_CONTEXT = 2400;
+const EXPLAIN_MAX_ANSWER_TOKENS = 700;
+
+function buildExplainMessages({ text, context, role, question, history, zh }) {
+  const excerpt = String(text || '').trim().slice(0, 3000);
+  const around = String(context || '').trim().slice(0, EXPLAIN_MAX_CONTEXT);
+  const sys = zh
+    ? [
+      '你是主人身边的助理。他在读对话时选中了一段文字，要你解释这段是什么意思。',
+      '要求：用日常中文，三两句话说清这段在讲什么、为什么这么说；说得越短越好，不寒暄、不复述原文、不加标题和编号，不用列表。',
+      '原文是代码、命令或报错时，说清它在做什么、会有什么影响。',
+      '他追问时再展开；没问到的不要主动扩展。',
+    ].join('\n')
+    : [
+      'You are the assistant of a busy reader. He selected a passage while reading a conversation and wants to know what it means.',
+      'Answer in plain language in two or three short sentences, no greeting, no restating the passage, no headings or lists.',
+      'When the passage is code, a command or an error, say what it does and what it affects.',
+      'Expand only when he follows up.',
+    ].join('\n');
+  const block = zh
+    ? [
+      `【选中的文字，出自${role === 'user' ? '他' : '助手'}说的那一句】`,
+      excerpt,
+      ...(around ? ['', '【这段所在的整条消息】', around] : []),
+    ].join('\n')
+    : [
+      `【Selected text, from a message by ${role === 'user' ? 'the reader' : 'the assistant'}】`,
+      excerpt,
+      ...(around ? ['', '【The whole message it came from】', around] : []),
+    ].join('\n');
+  const messages = [
+    { role: 'system', content: sys },
+    { role: 'user', content: `${block}\n\n${question ? question : (zh ? '解释一下这段是什么意思。' : 'Explain what this passage means.')}` },
+  ];
+  for (const item of history) {
+    if (!item || (item.role !== 'user' && item.role !== 'assistant')) continue;
+    const content = String(item.content || '').trim().slice(0, 2000);
+    if (content) messages.push({ role: item.role, content });
+  }
+  return messages;
+}
+
+// 把 Magpie 的 SSE 增量直接转成纯文本流，前端边收边显示
+function relayExplainStream(upstream) {
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(controller) {
+      let buffer = '';
+      try {
+        for (;;) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+          let index = buffer.search(/\r?\n/);
+          let out = '';
+          while (index !== -1) {
+            const line = buffer.slice(0, index).trim();
+            buffer = buffer.slice(index + (buffer[index] === '\r' ? 2 : 1));
+            if (line.startsWith('data:')) {
+              const payload = line.slice(5).trim();
+              if (payload && payload !== '[DONE]') {
+                try {
+                  const delta = JSON.parse(payload)?.choices?.[0]?.delta?.content;
+                  if (typeof delta === 'string') out += delta;
+                } catch {
+                  // 不完整的 JSON 行，跳过
+                }
+              }
+            }
+            index = buffer.search(/\r?\n/);
+          }
+          if (out) controller.enqueue(encoder.encode(out));
+        }
+        buffer += decoder.decode();
+        controller.close();
+      } catch (error) {
+        controller.error(error);
+      }
+    },
+    cancel() {
+      reader.cancel().catch(() => {});
+    },
+  });
+}
+
 function buildSuggestRequestExtra(model) {
   if (/doubao-seed-2/i.test(String(model || ''))) {
     return { reasoning_effort: 'minimal' };
@@ -569,6 +657,62 @@ export function createHostHandlers(baseDir) {
           return Response.json({ ok: texts.length > 0, text: texts[0] || '', texts });
         } catch (error) {
           return Response.json({ ok: false, error: error?.message || 'suggest failed' });
+        }
+      },
+    },
+    {
+      // 划词解释：最快模型就地回答，流式吐字；不建会话、不建分支
+      path: '/api/dsh-obsidian-prism/explain',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      async fetch(request) {
+        try {
+          const { base, key } = resolveMagpieEndpoint();
+          const body = await request.json();
+          const text = String(body?.text || '').trim();
+          if (!text) return Response.json({ ok: false, error: 'empty selection' }, { status: 400 });
+
+          const models = await getMagpieTextModels();
+          const model = pickFastDefaultModel(models, (process.env.OP_EXPLAIN_MODEL || '').trim());
+          if (!model) return Response.json({ ok: false, error: 'No available text model' }, { status: 400 });
+
+          const messages = buildExplainMessages({
+            text,
+            context: body?.context,
+            role: body?.role === 'user' ? 'user' : 'assistant',
+            question: body?.question,
+            history: Array.isArray(body?.history) ? body.history.slice(-6) : [],
+            zh: body?.zh !== false,
+          });
+
+          const upstream = await globalThis.fetch(`${base}/v1/chat/completions`, {
+            method: 'POST',
+            headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
+            body: JSON.stringify({
+              model,
+              stream: true,
+              temperature: 0.3,
+              max_tokens: EXPLAIN_MAX_ANSWER_TOKENS,
+              ...buildSuggestRequestExtra(model),
+              messages,
+            }),
+            signal: AbortSignal.timeout(45000),
+          });
+          if (!upstream.ok) throw new Error(`magpie ${upstream.status}`);
+
+          const type = String(upstream.headers.get('content-type') || '');
+          if (!upstream.body || !type.includes('event-stream')) {
+            const j = await upstream.json();
+            const answer = String(j?.choices?.[0]?.message?.content || '').trim();
+            return new Response(answer, {
+              headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-op-model': model },
+            });
+          }
+          return new Response(relayExplainStream(upstream), {
+            headers: { 'content-type': 'text/plain; charset=utf-8', 'cache-control': 'no-store', 'x-op-model': model },
+          });
+        } catch (error) {
+          return Response.json({ ok: false, error: error?.message || 'explain failed' }, { status: 502 });
         }
       },
     },

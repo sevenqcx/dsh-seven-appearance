@@ -1,6 +1,6 @@
 # Seven Appearance (`dsh-seven-appearance`)
 
-A GPL-3.0-only DeepSeek Harness adaptation of [Obsidian Prism](https://github.com/RMvdesi/obsidian-prism), providing theme palettes, visual effects, mascots, local wallpapers, unified model & reasoning effort picker, next-prompt suggestions (three divergent candidates, speech-sample learning, accept-rate metrics), conversation navigation, and selection/context-menu sidebar actions.
+A GPL-3.0-only DeepSeek Harness adaptation of [Obsidian Prism](https://github.com/RMvdesi/obsidian-prism), providing theme palettes, visual effects, mascots, local wallpapers, unified model & reasoning effort picker, next-prompt suggestions (three divergent candidates, speech-sample learning, accept-rate metrics), conversation navigation, and in-place selection explanations from the conversation right-click menu.
 
 Open the settings section named Seven Appearance, or use Alt+Shift+P to open the appearance drawer. Alt+Shift+O toggles the conversation outline. Settings can be exported and imported; wallpaper files are not included in the backup.
 

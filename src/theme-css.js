@@ -3099,13 +3099,132 @@ html[data-op-effective-theme="light"] .op-effort-knob {
   to { transform: rotate(360deg); }
 }
 @keyframes op-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.op-side-question {
-  display: flex;
-  width: 100%;
-  height: 100%;
-  min-width: 0;
-  min-height: 0;
+
+/* ── 划词解释小窗 ─────────────────────────────────────────────────────── */
+@keyframes op-explain-in {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
 }
+.op-explain {
+  position: fixed;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  box-sizing: border-box;
+  border-radius: 14px;
+  corner-shape: round;
+  background: var(--dsw-alias-bg-layer-1, var(--op-menu-bg, #16171c));
+  border: 1px solid color-mix(in srgb, var(--op-accent, #669DF6) 26%, var(--op-border-2, rgba(255,255,255,.14)));
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, .45), inset 0 1px 0 var(--op-specular, rgba(255,255,255,.06));
+  color: var(--dsw-alias-label-primary, var(--op-fg-1, #F2F2F5));
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  animation: op-explain-in 130ms var(--op-ease-out, ease-out);
+}
+.op-explain[hidden] { display: none !important; }
+.op-explain-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+.op-explain-title {
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+}
+.op-explain-close {
+  all: unset;
+  box-sizing: border-box;
+  width: 20px;
+  height: 20px;
+  line-height: 18px;
+  text-align: center;
+  border-radius: 6px;
+  cursor: pointer;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+  font-size: 14px;
+}
+.op-explain-close:hover { background: var(--op-accent-soft, rgba(102,157,246,.18)); color: var(--dsw-alias-label-primary, var(--op-fg-1)); }
+.op-explain-quote {
+  margin: 0;
+  padding: 6px 9px;
+  max-height: 68px;
+  overflow: auto;
+  border-radius: 9px;
+  border-left: 2px solid color-mix(in srgb, var(--op-accent, #669DF6) 60%, transparent);
+  background: color-mix(in srgb, var(--op-accent, #669DF6) 7%, transparent);
+  color: var(--dsw-alias-label-secondary, var(--op-fg-2, #C4C4CE));
+  font-size: 12px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.op-explain-thread {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow: auto;
+  min-height: 0;
+  max-height: 232px;
+  padding-right: 2px;
+}
+.op-explain-item[data-role="user"] .op-explain-text {
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+  font-size: 12px;
+}
+.op-explain-text {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.62;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+.op-explain-status {
+  margin: 0;
+  font-size: 11.5px;
+  color: var(--dsw-alias-label-tertiary, var(--op-fg-3, #8B8B99));
+}
+.op-explain-status[hidden] { display: none; }
+.op-explain-status[data-tone="err"] { color: var(--op-status-err, #E5534B); }
+.op-explain-form {
+  display: flex;
+  align-items: flex-end;
+  gap: 6px;
+  border-top: 1px solid color-mix(in srgb, currentColor 10%, transparent);
+  padding-top: 7px;
+}
+.op-explain-input {
+  flex: 1 1 auto;
+  min-height: 26px;
+  max-height: 76px;
+  resize: none;
+  box-sizing: border-box;
+  padding: 5px 8px;
+  border-radius: 8px;
+  border: 1px solid color-mix(in srgb, currentColor 14%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-base, #0f1014) 60%, transparent);
+  color: var(--dsw-alias-label-primary, var(--op-fg-1));
+  font: inherit;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+.op-explain-input:focus-visible { outline: none; border-color: color-mix(in srgb, var(--op-accent, #669DF6) 60%, transparent); }
+.op-explain-send {
+  flex: 0 0 auto;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 8px;
+  corner-shape: round;
+  background: var(--op-accent, #669DF6);
+  color: var(--op-accent-fg, #FFFFFF);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+}
+.op-explain-send:disabled { opacity: .55; cursor: default; }
 .op-context-menu {
   position: fixed; z-index: 2147483000; min-width: 168px; max-width: 280px; padding: 5px;
   border-radius: 10px; display: flex; flex-direction: column; gap: 1px;

@@ -30,7 +30,7 @@ function textOf(el) {
   return String(el?.innerText || el?.textContent || '').replace(/\s+\n/g, '\n').trim();
 }
 
-const SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 function setBoundedMap(map, key, value, max = MAX_CACHE_ENTRIES) {
   if (!key) return;
@@ -996,7 +996,7 @@ export function createPromptSuggestController({ getSettings }) {
     '[aria-modal="true"]',
     '.op-drawer',
     '[data-sidebar-right-session]',
-    '.op-side-question',
+    '.op-explain',
   ].join(', ');
 
   const TAB_YIELD_OVERLAY_SEL =

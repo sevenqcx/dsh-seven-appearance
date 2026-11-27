@@ -1,7 +1,7 @@
 // Selection Quick-Ask & Quote Bar for dsh-obsidian-prism
 import { isZhUi } from './i18n.js';
 
-export function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
+export function formatSelectionQuote(rawText) {
   const cleaned = String(rawText ?? '')
     .replace(/\r\n?/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
@@ -12,16 +12,10 @@ export function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
     .map((line) => (line.trim() ? `> ${line}` : '>'))
     .join('\n');
 
-  if (mode === 'explain') {
-    const lead = zh
-      ? '请结合当前上下文，详细解释下面这段内容：'
-      : 'Please explain this excerpt in detail based on our current context:';
-    return `${lead}\n${quoted}\n\n`;
-  }
   return `${quoted}\n\n`;
 }
 
-const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-explain';
 
 export function findMainComposerCard(doc = document) {
   if (!doc) return null;
@@ -241,18 +235,29 @@ function rectsOverlap(a, b, pad = 4) {
 }
 
 function getNativeTextSurfaceRect() {
-  const surfaces = document.querySelectorAll('[data-text-interaction-surface]');
+  if (typeof document?.querySelectorAll !== 'function') return null;
+  let surfaces;
+  try {
+    surfaces = document.querySelectorAll('[data-text-interaction-surface]');
+  } catch {
+    return null;
+  }
   for (const el of surfaces) {
-    if (!(el instanceof Element)) continue;
-    const cs = getComputedStyle(el);
-    if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
-    const r = el.getBoundingClientRect();
-    if (r.width > 4 && r.height > 4) return r;
+    try {
+      if (typeof getComputedStyle === 'function') {
+        const cs = getComputedStyle(el);
+        if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) continue;
+      }
+      const r = el.getBoundingClientRect?.();
+      if (r && r.width > 4 && r.height > 4) return r;
+    } catch {
+      // skip unreadable node
+    }
   }
   return null;
 }
 
-export function createSelectionAskController({ getSettings, openSideQuestion }) {
+export function createSelectionAskController({ getSettings, openExplain }) {
   let pillEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -261,6 +266,8 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
   let pointerSelecting = false;
   let activeText = '';
   let activeSessionId = '';
+  let activeAnchor = null;
+  let activeRect = null;
   let disposed = false;
 
   const EXCLUDE_SELECTOR = [
@@ -271,7 +278,7 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
     '.op-drawer-backdrop',
     '.op-outline-rail',
     '.op-selection-pill',
-    '.op-side-question',
+    '.op-explain',
     '.op-status-vial',
     '.op-code-fold-bar',
     '[data-op-ui="1"]',
@@ -311,6 +318,8 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
   function hidePill() {
     activeText = '';
     activeSessionId = '';
+    activeAnchor = null;
+    activeRect = null;
     if (repositionRaf) {
       cancelAnimationFrame(repositionRaf);
       repositionRaf = 0;
@@ -346,7 +355,7 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
 
     const conversation = anchorEl.closest('[data-conversation-session]');
     const sessionId =
-      conversation && conversation.contains(focusEl) && !conversation.closest('.op-side-question')
+      conversation && conversation.contains(focusEl) && !conversation.closest('.op-explain')
         ? conversation.getAttribute('data-conversation-session') || ''
         : '';
     if (!sessionId) return null;
@@ -358,120 +367,73 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
     const vh = window.innerHeight || 800;
     if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
 
-    return { text, rect, sessionId };
+    return { text, rect, sessionId, anchorEl };
   }
 
-  async function copySelection(text, zh) {
-    try {
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        await navigator.clipboard.writeText(text);
-      } else {
-        const ta = document.createElement('textarea');
-        ta.value = text;
-        ta.style.position = 'fixed';
-        ta.style.opacity = '0';
-        document.body.appendChild(ta);
-        ta.select();
-        document.execCommand('copy');
-        ta.remove();
-      }
-      showToast(zh ? '已复制选中内容' : 'Copied selection', 'ok');
-    } catch {
-      showToast(zh ? '复制失败' : 'Copy failed', 'err');
-    }
-  }
-
-  function runAction(kind) {
+  function runAction() {
     const s = getSettings();
     const zh = isZhUi(s);
     const text = activeText;
-    const sessionId = activeSessionId;
+    const anchorEl = activeAnchor;
+    const rect = activeRect;
     if (!text) return;
-
-    if (kind === 'copy') {
-      copySelection(text, zh);
-      hidePill();
-      return;
-    }
-
     hidePill();
-    if (!sessionId || typeof openSideQuestion !== 'function') {
-      showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+    if (typeof openExplain !== 'function') {
+      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
       return;
     }
-    Promise.resolve(openSideQuestion(sessionId, text, kind, zh))
-      .then(() => {
-        try {
-          window.getSelection?.()?.removeAllRanges?.();
-        } catch {
-          // ignore
-        }
-      })
-      .catch(() => {
-        showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
-      });
+    try {
+      openExplain({ text, anchor: anchorEl, rect });
+    } catch {
+      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+    }
   }
 
   function positionPill(rect) {
     if (!pillEl || !pillEl.isConnected) return;
     const pillRect = pillEl.getBoundingClientRect();
-    const width = pillRect.width || 180;
-    const height = pillRect.height || 34;
+    const width = pillRect.width || 76;
+    const height = pillRect.height || 30;
     const vw = window.innerWidth || 1280;
     const vh = window.innerHeight || 800;
-    const gap = 10;
+    const gap = 8;
 
-    // Respect composer top edge so pill never lands under the composer card
     const composerCard = findMainComposerCard(document);
     const composerTop = composerCard ? composerCard.getBoundingClientRect().top : vh;
     const maxBottom = Math.min(vh - 12, composerTop - 8);
 
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(12, Math.min(vw - width - 12, centerX - width / 2));
-
-    const aboveTop = rect.top - height - gap;
-    const belowTop = rect.bottom + gap;
+    // DSH 原生的「引用文本」按钮就在选区上方；解释按钮直接贴到它右边
     const nativeRect = getNativeTextSurfaceRect();
-
-    let top = aboveTop;
-    let placement = 'above';
-
-    const aboveBox = { left, top: aboveTop, right: left + width, bottom: aboveTop + height };
-    const belowBox = { left, top: belowTop, right: left + width, bottom: belowTop + height };
-
-    const aboveFits = aboveTop >= 12;
-    const belowFits = belowTop + height <= maxBottom;
-    const collidesAbove = nativeRect ? rectsOverlap(aboveBox, nativeRect, 6) : false;
-    const collidesBelow = nativeRect ? rectsOverlap(belowBox, nativeRect, 6) : false;
-
-    if ((!aboveFits || collidesAbove) && belowFits && !collidesBelow) {
-      top = belowTop;
-      placement = 'below';
-    } else if (collidesAbove && nativeRect) {
-      // Stack cleanly above the native DSH quote surface if below doesn't fit
-      const stackedAbove = nativeRect.top - height - 8;
-      if (stackedAbove >= 12) {
-        top = stackedAbove;
-        placement = 'above';
-      } else if (belowFits) {
-        top = belowTop;
-        placement = 'below';
+    if (nativeRect) {
+      const left = nativeRect.right + gap;
+      const top = nativeRect.top + (nativeRect.height - height) / 2;
+      if (left + width <= vw - 12 && top >= 8 && top + height <= maxBottom) {
+        pillEl.setAttribute('data-placement', 'native');
+        pillEl.style.left = `${Math.round(left)}px`;
+        pillEl.style.top = `${Math.round(top)}px`;
+        return;
       }
-    } else if (!aboveFits) {
-      top = Math.max(12, Math.min(maxBottom - height, belowTop));
-      placement = 'below';
     }
 
-    pillEl.setAttribute('data-placement', placement);
+    const centerX = rect.left + rect.width / 2;
+    const left = Math.max(12, Math.min(vw - width - 12, centerX - width / 2));
+    const aboveTop = rect.top - height - gap;
+    const belowTop = rect.bottom + gap;
+    const aboveFits = aboveTop >= 12;
+    const belowFits = belowTop + height <= maxBottom;
+    const top = aboveFits || !belowFits ? Math.max(12, Math.min(maxBottom - height, aboveTop)) : belowTop;
+    pillEl.setAttribute('data-placement', aboveFits || !belowFits ? 'above' : 'below');
     pillEl.style.left = `${Math.round(left)}px`;
     pillEl.style.top = `${Math.round(top)}px`;
   }
 
-  function renderPill(text, rect, sessionId) {
+  function renderPill(text, rect, sessionId, anchorEl) {
     const s = getSettings();
     const zh = isZhUi(s);
     activeText = text;
     activeSessionId = sessionId;
+    activeAnchor = anchorEl || null;
+    activeRect = rect || null;
 
     if (!pillEl || !pillEl.isConnected) {
       pillEl = document.createElement('div');
@@ -479,7 +441,7 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
       pillEl.setAttribute('data-op-ui', '1');
       pillEl.setAttribute('role', 'toolbar');
       const keepSelection = (ev) => {
-        // Keep browser selection intact until button click completes
+        // 点按钮时别把选区弄丢，解释要用它
         ev.preventDefault();
         ev.stopPropagation();
       };
@@ -488,31 +450,23 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
       document.body.appendChild(pillEl);
     }
 
-    pillEl.setAttribute('aria-label', zh ? '划词快捷操作' : 'Selection quick actions');
+    pillEl.setAttribute('aria-label', zh ? '解释选中的文字' : 'Explain the selection');
     pillEl.textContent = '';
 
-    const actions = [
-      { id: 'quote', label: zh ? '侧边追问' : 'Ask in sidebar', primary: true },
-      { id: 'explain', label: zh ? '侧边解释' : 'Explain', primary: false },
-      { id: 'copy', label: zh ? '复制' : 'Copy', primary: false },
-    ];
-
-    for (const act of actions) {
-      const btn = document.createElement('button');
-      btn.type = 'button';
-      btn.className = act.primary ? 'op-selection-btn op-selection-btn-primary' : 'op-selection-btn';
-      btn.setAttribute('data-op-action', act.id);
-      btn.textContent = act.label;
-      btn.addEventListener('click', (ev) => {
-        ev.preventDefault();
-        ev.stopPropagation();
-        runAction(act.id);
-      });
-      pillEl.appendChild(btn);
-    }
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'op-selection-btn op-selection-btn-primary';
+    btn.setAttribute('data-op-action', 'explain');
+    btn.textContent = zh ? '解释' : 'Explain';
+    btn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      runAction();
+    });
+    pillEl.appendChild(btn);
 
     positionPill(rect);
-    // Re-check once after next frame in case DSH's native quote surface appeared simultaneously
+    // 原生「引用文本」可能晚一帧才出现，再贴一次
     if (repositionRaf) cancelAnimationFrame(repositionRaf);
     repositionRaf = requestAnimationFrame(() => {
       repositionRaf = 0;
@@ -537,7 +491,7 @@ export function createSelectionAskController({ getSettings, openSideQuestion }) 
       hidePill();
       return;
     }
-    renderPill(eligible.text, eligible.rect, eligible.sessionId);
+    renderPill(eligible.text, eligible.rect, eligible.sessionId, eligible.anchorEl);
   }
 
   function scheduleEvaluate(delay = 45) {
