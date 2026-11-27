@@ -1092,6 +1092,47 @@ function makeTempDir() {
   return mkdtempSync(join(tmpdir(), 'dsh-op-test-'));
 }
 
+test('tracked files and commit identity stay free of personal information', async () => {
+  const { execFileSync } = await import('node:child_process');
+  const repoRoot = new URL('..', import.meta.url).pathname;
+  let tracked = [];
+  try {
+    tracked = execFileSync('git', ['ls-files'], { cwd: repoRoot, encoding: 'utf8' })
+      .split('\n')
+      .map((x) => x.trim())
+      .filter(Boolean);
+  } catch {
+    return; // 不在 git 工作区里就跳过
+  }
+  assert.ok(tracked.length > 0);
+
+  // 把敏感特征拆开写，避免这份检查自己命中自己
+  const markers = [
+    '/' + 'Users/',
+    'Xiao' + 'qi',
+    ['seven7cx@', 'seven7cx', 'de', 'Mac-Studio'].join(''),
+    ['de', 'Mac-Studio'].join(''),
+    'sk-' + '[A-Za-z0-9]{20,}',
+    'gh' + 'p_[A-Za-z0-9]{20,}',
+  ].map((m) => new RegExp(m));
+  const selfPath = 'test/plugin.test.js';
+  const offenders = [];
+  for (const rel of tracked) {
+    if (rel === selfPath || rel === 'client.js') continue;
+    let text = '';
+    try { text = readFileSync(new URL(`../${rel}`, import.meta.url), 'utf8'); } catch { continue; }
+    for (const re of markers) {
+      if (re.test(text)) offenders.push(`${rel} 命中 ${re}`);
+    }
+  }
+  assert.deepEqual(offenders, [], `仓库里不能带本机路径、主机名或密钥：\n${offenders.join('\n')}`);
+
+  // 提交身份必须是公开的 noreply 邮箱，不能泄露本机主机名
+  const email = execFileSync('git', ['log', '-1', '--format=%ae'], { cwd: repoRoot, encoding: 'utf8' }).trim();
+  assert.doesNotMatch(email, /\.local$/i, `提交邮箱不能是本机地址：${email}`);
+  assert.doesNotMatch(email, /@[^@]*mac[^@]*\./i, `提交邮箱不能带主机名：${email}`);
+});
+
 test('host settings read/write round-trip', async () => {
   const dir = makeTempDir();
   try {
