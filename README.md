@@ -8,7 +8,7 @@
 [![release](https://img.shields.io/github/v/release/sevenqcx/dsh-seven-appearance?color=a46bff)](https://github.com/sevenqcx/dsh-seven-appearance/releases)
 [![license](https://img.shields.io/badge/license-GPL--3.0-ff7ab6)](LICENSE)
 
-<img src="docs/promo/seven-appearance-promo.gif" alt="Seven 外观宣传动图" width="800">
+<a href="docs/promo/seven-appearance-promo.mp4"><img src="docs/promo/seven-appearance-promo.gif" alt="Seven 外观宣传动图" width="100%"></a>
 
 <sub>10 秒速览 · <a href="docs/promo/seven-appearance-promo.mp4">高清 MP4</a> · <a href="README.en.md">English</a></sub>
 
