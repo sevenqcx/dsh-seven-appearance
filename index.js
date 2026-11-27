@@ -256,6 +256,38 @@ export function createHostHandlers(baseDir) {
       },
     },
     {
+      // Magpie group order straight from Magpie's own /v1/models listing
+      // (model list order == Magpie's group order). Plugin never hardcodes it.
+      path: '/api/dsh-obsidian-prism/magpie-groups',
+      methods: ['GET'],
+      requestBody: 'buffered',
+      async fetch() {
+        try {
+          const base = process.env.MAGPIE_BASE_URL || 'http://127.0.0.1:3425';
+          const key = process.env.MAGPIE_GATEWAY_KEY || '';
+          const res = await globalThis.fetch(`${base.replace(/\/+$/, '').replace(/\/v1$/, '')}/v1/models`, {
+            headers: key ? { authorization: `Bearer ${key}` } : {},
+            signal: AbortSignal.timeout(4000),
+          });
+          if (!res.ok) throw new Error(`magpie ${res.status}`);
+          const data = (await res.json())?.data || [];
+          const order = [];
+          const owners = {};
+          for (const m of data) {
+            const id = String(m?.id || '');
+            const i = id.indexOf('/');
+            if (i <= 0) continue;
+            const slug = id.slice(0, i).toLowerCase();
+            if (!order.includes(slug)) order.push(slug);
+            if (!owners[slug] && m?.owned_by) owners[slug] = String(m.owned_by);
+          }
+          return Response.json({ ok: true, order, owners });
+        } catch (error) {
+          return Response.json({ ok: false, error: error?.message || 'magpie unreachable' });
+        }
+      },
+    },
+    {
       path: '/api/dsh-obsidian-prism/wallpapers',
       methods: ['GET'],
       requestBody: 'buffered',

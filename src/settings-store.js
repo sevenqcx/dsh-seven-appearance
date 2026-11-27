@@ -54,7 +54,6 @@ export const DEFAULT_SETTINGS = Object.freeze({
   codeFoldThreshold: 24,
   turnOutlineEnabled: true,
   quickTriggerVisible: true,
-  modelGroupConfig: '',
 });
 
 export const BACKUP_SCHEMA_ID = 'dsh-obsidian-prism-settings';
@@ -232,27 +231,6 @@ function isValidMascotSpec(raw) {
   return /^r:(?:[ckdw][0-4](?:,[ckdw][0-4])*)?(?:\+m)?$/.test(raw);
 }
 
-// 每行一组：`前缀 = 显示名, 排序, 图标`，排序和图标可省略，# 开头为注释。
-export function parseModelGroupConfig(text) {
-  const out = {};
-  const lines = String(text || '').split(/\r?\n/);
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
-    const eq = t.indexOf('=');
-    if (eq <= 0) continue;
-    const slug = t.slice(0, eq).trim().toLowerCase();
-    if (!/^[a-z0-9._-]{1,60}$/.test(slug)) continue;
-    const parts = t.slice(eq + 1).split(/[,，]/).map((x) => x.trim());
-    const entry = {};
-    if (parts[0]) entry.name = parts[0].slice(0, 40);
-    const n = Number(parts[1]);
-    if (parts[1] && Number.isFinite(n)) entry.order = n;
-    if (parts[2]) entry.icon = parts[2].toLowerCase();
-    out[slug] = entry;
-  }
-  return out;
-}
 
 export function sanitizeSettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -288,7 +266,6 @@ export function sanitizeSettings(raw) {
     codeFoldThreshold: Math.round(clampNum(src.codeFoldThreshold, 12, 80, d.codeFoldThreshold)),
     turnOutlineEnabled: typeof src.turnOutlineEnabled === 'boolean' ? src.turnOutlineEnabled : d.turnOutlineEnabled,
     quickTriggerVisible: typeof src.quickTriggerVisible === 'boolean' ? src.quickTriggerVisible : d.quickTriggerVisible,
-    modelGroupConfig: typeof src.modelGroupConfig === 'string' ? src.modelGroupConfig.slice(0, 4000) : d.modelGroupConfig,
   };
 }
 

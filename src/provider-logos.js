@@ -1284,16 +1284,8 @@ const PROVIDER_BRAND_RULES = [
   [/magpie/, "magpie"],
 ];
 
-let brandOverrides = {};
-export function setProviderBrandOverrides(map) {
-  brandOverrides = map && typeof map === "object" ? map : {};
-}
-
 export function resolveProviderBrandKey(providerId, providerName, modelId, modelName) {
   const pid = String(providerId || "").toLowerCase();
-  const ovSlug = pid.startsWith("magpie-group:") ? pid.slice(13) : pid;
-  const ovIcon = brandOverrides[ovSlug]?.icon;
-  if (ovIcon && !modelId && PROVIDER_BRAND_LOGOS[ovIcon]) return ovIcon;
   const modelText = [modelId, modelName]
     .filter((v) => typeof v === "string" && v.length > 0)
     .join(" ")
@@ -1302,6 +1294,22 @@ export function resolveProviderBrandKey(providerId, providerName, modelId, model
     for (let i = 0; i < MODEL_BRAND_RULES.length; i += 1) {
       if (MODEL_BRAND_RULES[i][0].test(modelText)) return MODEL_BRAND_RULES[i][1];
     }
+  }
+
+  if (pid.startsWith("magpie-group:")) {
+    const ovSlug = pid.slice(13);
+    // Magpie 分组：只按分组名匹配，避免前缀 "magpie-group:" 让所有未知分组都落到 Magpie 图标
+    if (ovSlug === "group") return "routegroup";
+    const slugText = [ovSlug, providerName]
+      .filter((v) => typeof v === "string" && v.length > 0)
+      .join(" ")
+      .toLowerCase();
+    for (let i = 0; i < PROVIDER_BRAND_RULES.length; i += 1) {
+      const key = PROVIDER_BRAND_RULES[i][1];
+      if (key === "magpie") continue;
+      if (PROVIDER_BRAND_RULES[i][0].test(slugText)) return key;
+    }
+    return null;
   }
 
   const provText = [providerId, providerName]

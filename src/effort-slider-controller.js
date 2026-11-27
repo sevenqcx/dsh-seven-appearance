@@ -1,4 +1,3 @@
-import { parseModelGroupConfig } from './settings-store.js';
 // Obsidian Prism Unified Model Picker + Cut-Crystal Reasoning Effort Deck
 // Occupies DSH's `conversation.input.model` slot at priority -1 (shadowing native ModelSelect
 // while Obsidian Prism & the picker feature are enabled, and yielding back cleanly when disabled).
@@ -10,7 +9,6 @@ import {
   getProviderBrandSpec,
   renderProviderLogoSvg,
   resolveProviderBrandKey,
-  setProviderBrandOverrides,
 } from './provider-logos.js';
 
 const OP_MP_FAVORITES_KEY = 'dsh-obsidian-prism:model-favorites:v1';
@@ -586,15 +584,8 @@ function formatMagpieSlugFallback(slug) {
     .join(' ');
 }
 
-function resolveMagpieGroupMeta(slug, zh, overrides = null) {
+function resolveMagpieGroupMeta(slug, zh) {
   const meta = MAGPIE_GROUP_META[slug];
-  const ov = overrides && overrides[slug];
-  if (ov) {
-    const base = meta ? (zh ? meta.zh : meta.en) : formatMagpieSlugFallback(slug);
-    const name = ov.name || base;
-    const order = typeof ov.order === 'number' ? ov.order : (meta ? meta.order : 1000);
-    return { name, tooltip: ov.name || (meta ? (zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en)) : name), order };
-  }
   if (meta) {
     const name = zh ? meta.zh : meta.en;
     const tooltip = zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en);
@@ -610,7 +601,6 @@ export function buildModelPickerCatalog(rawGroups, opts = null) {
   const favoriteKeys = opts?.favoriteKeys instanceof Set ? opts.favoriteKeys : new Set();
   const routableKnown = Boolean(opts?.routableKnown);
   const routableSet = opts?.routableSet instanceof Set ? opts.routableSet : new Set();
-  const groupOverrides = opts?.groupOverrides && typeof opts.groupOverrides === 'object' ? opts.groupOverrides : null;
 
   const beforeMagpie = [];
   const afterMagpie = [];
@@ -671,7 +661,7 @@ export function buildModelPickerCatalog(rawGroups, opts = null) {
       let isVirtual;
 
       if (slug) {
-        const meta = resolveMagpieGroupMeta(slug, zh, groupOverrides);
+        const meta = resolveMagpieGroupMeta(slug, zh);
         bucketKey = `magpie-group:${slug}`;
         bucketName = meta.name;
         bucketTooltip = meta.tooltip;
@@ -720,8 +710,18 @@ export function buildModelPickerCatalog(rawGroups, opts = null) {
     }
   }
 
+  // Magpie owns the group order: when its live listing is available, follow it
+  // exactly; built-in order is only a fallback when Magpie can't be reached.
+  const magpieOrder = Array.isArray(opts?.magpieOrder) ? opts.magpieOrder : [];
+  const liveRank = (bucket) => {
+    const slug = String(bucket.id).startsWith('magpie-group:') ? bucket.id.slice(13) : null;
+    const i = slug ? magpieOrder.indexOf(slug) : -1;
+    return i >= 0 ? i : magpieOrder.length + bucket.order;
+  };
   const sortedMagpie = Array.from(magpieBuckets.values()).sort(
-    (a, b) => (a.order - b.order) || (a.firstSeen - b.firstSeen),
+    magpieOrder.length
+      ? (a, b) => (liveRank(a) - liveRank(b)) || (a.firstSeen - b.firstSeen)
+      : (a, b) => (a.order - b.order) || (a.firstSeen - b.firstSeen),
   );
 
   const combined = [...beforeMagpie, ...sortedMagpie, ...afterMagpie];
@@ -1461,15 +1461,19 @@ export function createEffortSliderSlotComponent({ React, createPortal, getCrysta
     const routableKnown = catalog.status === 'ready';
     const routableSet = useMemo(() => new Set(catalog.providers), [catalog.providers]);
 
-    const groupConfigText = settings?.modelGroupConfig || '';
-    const groupOverrides = useMemo(() => {
-      const ov = parseModelGroupConfig(groupConfigText);
-      setProviderBrandOverrides(ov);
-      return ov;
-    }, [groupConfigText]);
+    const [magpieOrder, setMagpieOrder] = useState([]);
+    const groupsSig = groups.map((g) => `${g?.id}:${Array.isArray(g?.models) ? g.models.length : 0}`).join('|');
+    useEffect(() => {
+      let alive = true;
+      fetch('/api/dsh-obsidian-prism/magpie-groups', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((j) => { if (alive && j?.ok && Array.isArray(j.order)) setMagpieOrder(j.order); })
+        .catch(() => {});
+      return () => { alive = false; };
+    }, [groupsSig]);
     const { displayGroups, allRows } = useMemo(
-      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet, groupOverrides }),
-      [groups, zh, favoriteKeys, routableKnown, routableSet, groupOverrides],
+      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet, magpieOrder }),
+      [groups, zh, favoriteKeys, routableKnown, routableSet, magpieOrder],
     );
 
     const rowByKey = useMemo(() => new Map(allRows.map((r) => [r.key, r])), [allRows]);
@@ -1635,9 +1639,10 @@ export function createEffortSliderSlotComponent({ React, createPortal, getCrysta
       triggerRef.current?.focus();
       const hasFavs = favoriteList.some((f) => rowByKey.has(`${f.provider}\0${f.model}`));
       const currentPane = currentRow?.displayGroupId;
-      const initialPane = hasFavs
-        ? 'favorites'
-        : (currentPane && providers.some((p) => p.id === currentPane) ? currentPane : 'all');
+      // 优先停在当前模型所在的分组；找不到时才退回收藏 / 全部
+      const initialPane = (currentPane && providers.some((p) => p.id === currentPane))
+        ? currentPane
+        : (hasFavs ? 'favorites' : 'all');
       setPane(initialPane);
       setQuery('');
       setHighlight(0);
@@ -1747,7 +1752,13 @@ export function createEffortSliderSlotComponent({ React, createPortal, getCrysta
 
     useEffect(() => {
       if (!open) return;
-      setHighlight(0);
+      // 没在搜索时，高亮并滚动到当前选中的模型
+      let idx = 0;
+      if (!query && current) {
+        const found = visibleRows.findIndex((r) => r.provider === current.provider && r.model?.id === current.model);
+        if (found >= 0) idx = found;
+      }
+      setHighlight(idx);
     }, [open, pane, query]);
 
     useEffect(() => {

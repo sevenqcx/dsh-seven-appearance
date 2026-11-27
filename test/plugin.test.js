@@ -1156,18 +1156,9 @@ test('dual-mascot-rig syncs habitat prop and fxCanvas during QueueDock leap and 
   assert.match(builtClient, /const syncHabitatLayout\s*=/);
 });
 
-test('model group overrides from settings', async () => {
-  const { parseModelGroupConfig } = await import('../src/settings-store.js');
+test('magpie group order follows magpie listing', async () => {
   const { buildModelPickerCatalog } = await import('../src/effort-slider-controller.js');
-  const { resolveProviderBrandKey, setProviderBrandOverrides } = await import('../src/provider-logos.js');
-  const ov = parseModelGroupConfig('# c\nkiro = Kiro 组, 25, claude\ncodex = 我的Codex');
-  assert.deepEqual(ov.kiro, { name: 'Kiro 组', order: 25, icon: 'claude' });
   const { displayGroups } = buildModelPickerCatalog([{ id: 'magpie', name: 'Magpie', models: [
-    { id: 'kiro/a' }, { id: 'codex/b' }, { id: 'aws-quick/c' } ] }], { zh: true, groupOverrides: ov });
-  const names = displayGroups.map((g) => g.name);
-  assert.ok(names.indexOf('Kiro 组') > names.indexOf('我的Codex'));
-  assert.ok(names.indexOf('Kiro 组') < names.indexOf('AWS Quick'));
-  setProviderBrandOverrides(ov);
-  assert.equal(resolveProviderBrandKey('magpie-group:kiro', 'Kiro 组'), 'claude');
-  setProviderBrandOverrides({});
+    { id: 'kiro/a' }, { id: 'codex/b' }, { id: 'aws-quick/c' } ] }], { zh: true, magpieOrder: ['aws-quick', 'kiro', 'codex'] });
+  assert.deepEqual(displayGroups.map((g) => g.name), ['AWS Quick', 'Kiro', 'Codex']);
 });

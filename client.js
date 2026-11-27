@@ -9353,7 +9353,6 @@ const DEFAULT_SETTINGS = Object.freeze({
   codeFoldThreshold: 24,
   turnOutlineEnabled: true,
   quickTriggerVisible: true,
-  modelGroupConfig: '',
 });
 
 const BACKUP_SCHEMA_ID = 'dsh-obsidian-prism-settings';
@@ -9531,27 +9530,6 @@ function isValidMascotSpec(raw) {
   return /^r:(?:[ckdw][0-4](?:,[ckdw][0-4])*)?(?:\+m)?$/.test(raw);
 }
 
-// 每行一组：`前缀 = 显示名, 排序, 图标`，排序和图标可省略，# 开头为注释。
-function parseModelGroupConfig(text) {
-  const out = {};
-  const lines = String(text || '').split(/\r?\n/);
-  for (const line of lines) {
-    const t = line.trim();
-    if (!t || t.startsWith('#')) continue;
-    const eq = t.indexOf('=');
-    if (eq <= 0) continue;
-    const slug = t.slice(0, eq).trim().toLowerCase();
-    if (!/^[a-z0-9._-]{1,60}$/.test(slug)) continue;
-    const parts = t.slice(eq + 1).split(/[,，]/).map((x) => x.trim());
-    const entry = {};
-    if (parts[0]) entry.name = parts[0].slice(0, 40);
-    const n = Number(parts[1]);
-    if (parts[1] && Number.isFinite(n)) entry.order = n;
-    if (parts[2]) entry.icon = parts[2].toLowerCase();
-    out[slug] = entry;
-  }
-  return out;
-}
 
 function sanitizeSettings(raw) {
   const src = raw && typeof raw === 'object' ? raw : {};
@@ -9587,7 +9565,6 @@ function sanitizeSettings(raw) {
     codeFoldThreshold: Math.round(clampNum(src.codeFoldThreshold, 12, 80, d.codeFoldThreshold)),
     turnOutlineEnabled: typeof src.turnOutlineEnabled === 'boolean' ? src.turnOutlineEnabled : d.turnOutlineEnabled,
     quickTriggerVisible: typeof src.quickTriggerVisible === 'boolean' ? src.quickTriggerVisible : d.quickTriggerVisible,
-    modelGroupConfig: typeof src.modelGroupConfig === 'string' ? src.modelGroupConfig.slice(0, 4000) : d.modelGroupConfig,
   };
 }
 
@@ -17556,16 +17533,8 @@ const PROVIDER_BRAND_RULES = [
   [/magpie/, "magpie"],
 ];
 
-let brandOverrides = {};
-function setProviderBrandOverrides(map) {
-  brandOverrides = map && typeof map === "object" ? map : {};
-}
-
 function resolveProviderBrandKey(providerId, providerName, modelId, modelName) {
   const pid = String(providerId || "").toLowerCase();
-  const ovSlug = pid.startsWith("magpie-group:") ? pid.slice(13) : pid;
-  const ovIcon = brandOverrides[ovSlug]?.icon;
-  if (ovIcon && !modelId && PROVIDER_BRAND_LOGOS[ovIcon]) return ovIcon;
   const modelText = [modelId, modelName]
     .filter((v) => typeof v === "string" && v.length > 0)
     .join(" ")
@@ -17574,6 +17543,22 @@ function resolveProviderBrandKey(providerId, providerName, modelId, modelName) {
     for (let i = 0; i < MODEL_BRAND_RULES.length; i += 1) {
       if (MODEL_BRAND_RULES[i][0].test(modelText)) return MODEL_BRAND_RULES[i][1];
     }
+  }
+
+  if (pid.startsWith("magpie-group:")) {
+    const ovSlug = pid.slice(13);
+    // Magpie 分组：只按分组名匹配，避免前缀 "magpie-group:" 让所有未知分组都落到 Magpie 图标
+    if (ovSlug === "group") return "routegroup";
+    const slugText = [ovSlug, providerName]
+      .filter((v) => typeof v === "string" && v.length > 0)
+      .join(" ")
+      .toLowerCase();
+    for (let i = 0; i < PROVIDER_BRAND_RULES.length; i += 1) {
+      const key = PROVIDER_BRAND_RULES[i][1];
+      if (key === "magpie") continue;
+      if (PROVIDER_BRAND_RULES[i][0].test(slugText)) return key;
+    }
+    return null;
   }
 
   const provText = [providerId, providerName]
@@ -18224,15 +18209,8 @@ function formatMagpieSlugFallback(slug) {
     .join(' ');
 }
 
-function resolveMagpieGroupMeta(slug, zh, overrides = null) {
+function resolveMagpieGroupMeta(slug, zh) {
   const meta = MAGPIE_GROUP_META[slug];
-  const ov = overrides && overrides[slug];
-  if (ov) {
-    const base = meta ? (zh ? meta.zh : meta.en) : formatMagpieSlugFallback(slug);
-    const name = ov.name || base;
-    const order = typeof ov.order === 'number' ? ov.order : (meta ? meta.order : 1000);
-    return { name, tooltip: ov.name || (meta ? (zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en)) : name), order };
-  }
   if (meta) {
     const name = zh ? meta.zh : meta.en;
     const tooltip = zh ? (meta.tooltipZh || meta.zh) : (meta.tooltipEn || meta.en);
@@ -18248,7 +18226,6 @@ function buildModelPickerCatalog(rawGroups, opts = null) {
   const favoriteKeys = opts?.favoriteKeys instanceof Set ? opts.favoriteKeys : new Set();
   const routableKnown = Boolean(opts?.routableKnown);
   const routableSet = opts?.routableSet instanceof Set ? opts.routableSet : new Set();
-  const groupOverrides = opts?.groupOverrides && typeof opts.groupOverrides === 'object' ? opts.groupOverrides : null;
 
   const beforeMagpie = [];
   const afterMagpie = [];
@@ -18309,7 +18286,7 @@ function buildModelPickerCatalog(rawGroups, opts = null) {
       let isVirtual;
 
       if (slug) {
-        const meta = resolveMagpieGroupMeta(slug, zh, groupOverrides);
+        const meta = resolveMagpieGroupMeta(slug, zh);
         bucketKey = `magpie-group:${slug}`;
         bucketName = meta.name;
         bucketTooltip = meta.tooltip;
@@ -18358,8 +18335,18 @@ function buildModelPickerCatalog(rawGroups, opts = null) {
     }
   }
 
+  // Magpie owns the group order: when its live listing is available, follow it
+  // exactly; built-in order is only a fallback when Magpie can't be reached.
+  const magpieOrder = Array.isArray(opts?.magpieOrder) ? opts.magpieOrder : [];
+  const liveRank = (bucket) => {
+    const slug = String(bucket.id).startsWith('magpie-group:') ? bucket.id.slice(13) : null;
+    const i = slug ? magpieOrder.indexOf(slug) : -1;
+    return i >= 0 ? i : magpieOrder.length + bucket.order;
+  };
   const sortedMagpie = Array.from(magpieBuckets.values()).sort(
-    (a, b) => (a.order - b.order) || (a.firstSeen - b.firstSeen),
+    magpieOrder.length
+      ? (a, b) => (liveRank(a) - liveRank(b)) || (a.firstSeen - b.firstSeen)
+      : (a, b) => (a.order - b.order) || (a.firstSeen - b.firstSeen),
   );
 
   const combined = [...beforeMagpie, ...sortedMagpie, ...afterMagpie];
@@ -19099,15 +19086,19 @@ function createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, 
     const routableKnown = catalog.status === 'ready';
     const routableSet = useMemo(() => new Set(catalog.providers), [catalog.providers]);
 
-    const groupConfigText = settings?.modelGroupConfig || '';
-    const groupOverrides = useMemo(() => {
-      const ov = parseModelGroupConfig(groupConfigText);
-      setProviderBrandOverrides(ov);
-      return ov;
-    }, [groupConfigText]);
+    const [magpieOrder, setMagpieOrder] = useState([]);
+    const groupsSig = groups.map((g) => `${g?.id}:${Array.isArray(g?.models) ? g.models.length : 0}`).join('|');
+    useEffect(() => {
+      let alive = true;
+      fetch('/api/dsh-obsidian-prism/magpie-groups', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((j) => { if (alive && j?.ok && Array.isArray(j.order)) setMagpieOrder(j.order); })
+        .catch(() => {});
+      return () => { alive = false; };
+    }, [groupsSig]);
     const { displayGroups, allRows } = useMemo(
-      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet, groupOverrides }),
-      [groups, zh, favoriteKeys, routableKnown, routableSet, groupOverrides],
+      () => buildModelPickerCatalog(groups, { zh, favoriteKeys, routableKnown, routableSet, magpieOrder }),
+      [groups, zh, favoriteKeys, routableKnown, routableSet, magpieOrder],
     );
 
     const rowByKey = useMemo(() => new Map(allRows.map((r) => [r.key, r])), [allRows]);
@@ -19273,9 +19264,10 @@ function createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, 
       triggerRef.current?.focus();
       const hasFavs = favoriteList.some((f) => rowByKey.has(`${f.provider}\0${f.model}`));
       const currentPane = currentRow?.displayGroupId;
-      const initialPane = hasFavs
-        ? 'favorites'
-        : (currentPane && providers.some((p) => p.id === currentPane) ? currentPane : 'all');
+      // 优先停在当前模型所在的分组；找不到时才退回收藏 / 全部
+      const initialPane = (currentPane && providers.some((p) => p.id === currentPane))
+        ? currentPane
+        : (hasFavs ? 'favorites' : 'all');
       setPane(initialPane);
       setQuery('');
       setHighlight(0);
@@ -19385,7 +19377,13 @@ function createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, 
 
     useEffect(() => {
       if (!open) return;
-      setHighlight(0);
+      // 没在搜索时，高亮并滚动到当前选中的模型
+      let idx = 0;
+      if (!query && current) {
+        const found = visibleRows.findIndex((r) => r.provider === current.provider && r.model?.id === current.model);
+        if (found >= 0) idx = found;
+      }
+      setHighlight(idx);
     }, [open, pane, query]);
 
     useEffect(() => {
@@ -19923,8 +19921,6 @@ const COPY = {
     codeFold: '长代码块自动折叠',
     codeFoldSub: '超出设定行数的代码块显示折叠吸顶栏',
     codeThreshold: '折叠阈值（行数）',
-    groupConfig: '模型分组自定义',
-    groupConfigSub: '每行一组：前缀 = 显示名, 排序, 图标。例如 kiro = Kiro, 25, claude。排序越小越靠前（路由组 0、Codex 10、Antigravity 20、AWS Quick 30）；排序和图标可省略。',
     turnOutline: '右侧会话大纲导航（可检索/收起）',
     turnOutlineSub: '支持关键词筛选、分类（提问/代码/工具）直达与一键收起，快捷键 Alt+Shift+O',
     quickTrigger: '显示右下角快捷入口',
@@ -20002,8 +19998,6 @@ const COPY = {
     codeFold: 'Auto-Fold Long Code Blocks',
     codeFoldSub: 'Adds a sticky collapse/expand bar on code blocks above threshold',
     codeThreshold: 'Fold Threshold (Lines)',
-    groupConfig: 'Model Group Overrides',
-    groupConfigSub: 'One per line: prefix = Name, order, icon. e.g. kiro = Kiro, 25, claude. Order and icon are optional.',
     turnOutline: 'Searchable Conversation Outline',
     turnOutlineSub: 'Filter by keyword or type (turns/code/tools), pin or collapse (Alt+Shift+O)',
     quickTrigger: 'Show Floating Studio Button',
@@ -20389,17 +20383,6 @@ function createStudioComponents({ React, createPortal, store }) {
           checked: s.effortSliderEnabled,
           onChange: (v) => store.set({ effortSliderEnabled: v }),
         }),
-        h('div', { className: 'op-row', style: { flexDirection: 'column', alignItems: 'stretch', gap: '6px' } },
-          h('div', { className: 'op-row-label' }, h('strong', null, t.groupConfig), h('span', null, t.groupConfigSub)),
-          h('textarea', {
-            rows: 4,
-            spellCheck: false,
-            placeholder: 'kiro = Kiro, 25, claude',
-            defaultValue: s.modelGroupConfig,
-            style: { width: '100%', fontFamily: 'monospace', fontSize: '12px', boxSizing: 'border-box' },
-            onBlur: (ev) => store.set({ modelGroupConfig: ev.target.value }),
-          }),
-        ),
         s.effortSliderEnabled
           ? h(ToggleRow, {
               label: t.effortSliderCrystal,
