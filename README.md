@@ -24,6 +24,60 @@ npm i dsh-seven-appearance
 
 ---
 
+## 亮点
+
+- **四套配色，一键换装**：深色黑曜、暖炭，浅色晶白、暖陶，8 档强调色、3 档圆角，可一键还原原生外观。
+- **棱镜边光**：流光描边贴合输入框真实轮廓和超椭圆圆角，生成中跑马灯旋转。
+- **下一步提示词**：回复一停就给三条方向不同的建议，`Tab` 填入，`⇧Tab` 换一条，越用越像你说话。
+- **统一模型选择器**：固定宽度双栏、搜索收藏、离线品牌标识，`⌘⇧M` 唤出，推理等级一拨就换。
+- **像素伙伴舞台**：Clawd、小猫、迷你蟹与 Deepy 像素鲸鱼住在输入框上沿，可拖拽，会陪你干活。
+- **更顺手的工作台**：划词解释、对话区右键菜单、会话大纲、长代码块折叠、本地动静态壁纸。
+
+---
+
+## 界面预览
+
+### 1. 四套光学配色
+
+<p align="center"><img src="docs/promo/palettes.jpg" width="100%" alt="四套光学配色"></p>
+
+| 主题 | 配置键 | 主画布 | 说明 |
+| :--- | :--- | :--- | :--- |
+| **Obsidian 黑曜** | `obsidian` | `#0E0E11` | 冷曜钴蓝，高对比代码阅读 |
+| **Warm 暖炭** | `warm` | `#141413` | 沉稳暖炭陶橙，低蓝光夜间 |
+| **Crystal 晶白** | `crystal` | `#F4F7FB` | 清透瓷白，冷调浅色 |
+| **Alabaster 暖陶** | `alabaster` | `#F6F4EE` | 温润纸白，柔和对比 |
+
+### 2. 棱镜边光 · 下一步提示词
+
+<p align="center"><img src="docs/promo/prism.jpg" width="100%" alt="棱镜边光与下一步提示词"></p>
+
+### 3. 统一模型与推理选择器
+
+<p align="center"><img src="docs/promo/picker.jpg" width="100%" alt="统一模型与推理选择器"></p>
+
+### 4. 像素伙伴舞台
+
+<p align="center"><img src="docs/promo/pets.jpg" width="100%" alt="像素伙伴舞台"></p>
+
+<sub>以上画面按插件真实配色与光效仿制渲染，示例内容为虚构。</sub>
+
+---
+
+## 快捷键
+
+| 快捷键 | 作用 |
+| :--- | :--- |
+| `Alt+Shift+P` | 打开外观工坊抽屉 |
+| `⌘⇧M` | 打开模型选择器 |
+| `Alt+Shift+O` | 开关会话大纲 |
+| `Tab` / `⇧Tab` | 填入 / 换一条提示词建议 |
+
+---
+
+<details>
+<summary><strong>完整更新记录与功能细节（点击展开）</strong></summary>
+
 ## 简介 (`dsh-seven-appearance`)
 
 基于 [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)（GPL-3.0-only）深度移植与定制的 DeepSeek Harness 外观与效率增强插件，涵盖主题配色、棱镜光效、像素伙伴舞台、本地动静态壁纸、统一模型与推理选择器、下一步提示词推荐、划词就地解释及会话工作台增强。
@@ -95,6 +149,8 @@ npm i dsh-seven-appearance
 6. **双入口实时外观工坊**
    - 原生注册到 DSH **设置 → Seven 外观** 独立分区
    - 右下角轻巧快捷入口按钮 + 全局快捷键 `Alt+Shift+P` 随时唤出侧滑抽屉，设置持久化至 `~/.dsh/obsidian-prism/settings.json`
+
+</details>
 
 ## 构建与测试
 

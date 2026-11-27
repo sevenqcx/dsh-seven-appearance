@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh"><head><meta charset="utf-8">
+<style>
+*{box-sizing:border-box;margin:0}
+html,body{width:1600px;height:800px;overflow:hidden;background:#05070c;font-family:-apple-system,"SF Pro Display","PingFang SC",sans-serif;color:#eef2fa}
+.bg{position:absolute;inset:0;background:radial-gradient(ellipse 70% 55% at 50% 110%,rgba(80,130,255,.42),transparent 70%),radial-gradient(ellipse 40% 40% at 15% 0%,rgba(155,114,203,.18),transparent 70%),#05070c}
+.grid{position:absolute;inset:0;background-image:linear-gradient(rgba(255,255,255,.035) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.035) 1px,transparent 1px);background-size:40px 40px;-webkit-mask:radial-gradient(ellipse at 50% 60%,#000 30%,transparent 75%)}
+.head{position:absolute;top:56px;left:0;right:0;text-align:center}
+.eb{font-size:14px;letter-spacing:6px;color:#8fb0ff}
+h2{font-size:46px;font-weight:700;margin-top:12px;background:linear-gradient(180deg,#fff,#b3bdd2);-webkit-background-clip:text;color:transparent}
+.ds{font-size:18px;color:#8f9ab2;margin-top:10px}
+.stage{position:absolute;left:0;right:0;top:250px;bottom:40px;display:flex;align-items:center;justify-content:center;gap:28px}
+.scene{display:none!important}.scene.on{display:flex!important}
+/* palettes */
+.pc{width:330px;height:430px;border-radius:20px;overflow:hidden;position:relative;box-shadow:0 30px 70px rgba(0,0,0,.55),0 0 0 1px rgba(255,255,255,.07)}
+.pc .sd{position:absolute;left:0;top:0;bottom:0;width:86px;padding:14px 10px}
+.pc .sd i{display:block;height:6px;border-radius:3px;margin:9px 0;opacity:.45}
+.pc .mn{position:absolute;left:86px;right:0;top:0;bottom:0;padding:26px 18px}
+.pc .t{font-size:15px;font-weight:600}
+.pc .cd{margin-top:16px;border-radius:10px;padding:10px;height:120px}
+.pc .cd i{display:block;height:5px;border-radius:3px;margin:8px 0}
+.pc .cp{position:absolute;left:18px;right:18px;bottom:20px;height:56px;border-radius:14px}
+.pc .lb{position:absolute;left:0;right:0;bottom:-46px;text-align:center}
+.lab{margin-top:18px;text-align:center;font-size:15px}
+.lab b{display:block;font-size:18px;color:#fff}
+.lab span{color:#8f9ab2;font-family:ui-monospace,Menlo,monospace;font-size:13px}
+/* rim */
+@property --a{syntax:'<angle>';initial-value:120deg;inherits:false}
+.rim{position:relative}
+.rim::before{content:"";position:absolute;inset:-2px;border-radius:inherit;padding:2px;background:conic-gradient(from var(--a),#669DF6,#9B72CB,#D97757,#4fd1c5,#669DF6);-webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);-webkit-mask-composite:xor;mask-composite:exclude}
+.rim.glow::after{content:"";position:absolute;inset:-22px;border-radius:40px;background:conic-gradient(from var(--a),rgba(102,157,246,.35),rgba(155,114,203,.3),rgba(217,119,87,.28),rgba(79,209,197,.28),rgba(102,157,246,.35));filter:blur(26px);z-index:-1}
+.bigc{width:980px;height:150px;border-radius:30px;background:#12141a;padding:30px 36px;font-size:24px;color:#d6dceb}
+.bigc .g{color:#5d6679}
+.kb{display:inline-block;border:1px solid #394158;border-bottom-width:3px;border-radius:8px;padding:2px 10px;font-size:15px;color:#aab4ca;margin-left:10px;font-family:ui-monospace,Menlo,monospace;vertical-align:3px}
+.foot{position:absolute;left:36px;right:36px;bottom:22px;display:flex;justify-content:space-between;font-size:14px;color:#7c869c}
+.chip{padding:5px 12px;border-radius:99px;background:#1f232d;color:#c8d0e0}
+.cands{display:flex;gap:14px;margin-top:34px}
+.cand{padding:10px 16px;border-radius:12px;background:#12141a;border:1px solid #262b38;font-size:15px;color:#aab4ca}
+.cand.on{border-color:#669DF6;color:#fff;background:#172036}
+.col{display:flex;flex-direction:column;align-items:center}
+/* picker */
+.pk{width:760px;border-radius:22px;background:#111318;border:1px solid #262b38;box-shadow:0 40px 90px rgba(0,0,0,.6);overflow:hidden}
+.pk .sr{padding:16px 20px;border-bottom:1px solid #20242f;color:#7c869c;font-size:16px;display:flex;justify-content:space-between}
+.pk .cols{display:grid;grid-template-columns:1fr 1fr}
+.pk .cl{padding:12px}
+.pk .cl+.cl{border-left:1px solid #20242f}
+.pk h4{font-size:12px;letter-spacing:2px;color:#6f7a91;margin:6px 10px 8px;font-weight:600}
+.pk .r{display:flex;align-items:center;gap:10px;padding:10px;border-radius:10px;font-size:15px;color:#cfd6e4}
+.pk .r.on{background:#1b2336;color:#fff}
+.pk .r i{width:18px;height:18px;border-radius:5px;display:block}
+.pk .r em{margin-left:auto;font-style:normal;color:#ffcf5a}
+.ef{padding:18px 22px 22px;border-top:1px solid #20242f}
+.ef .tt{display:flex;justify-content:space-between;font-size:14px;color:#8f9ab2;margin-bottom:12px}
+.ef .tk{position:relative;height:12px;border-radius:12px;background:#1c2029}
+.ef .fl{position:absolute;left:0;top:0;bottom:0;width:72%;border-radius:12px;background:linear-gradient(90deg,#669DF6,#9B72CB,#D97757);box-shadow:0 0 22px rgba(155,114,203,.6)}
+.ef .kn{position:absolute;left:72%;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:linear-gradient(135deg,#fff,#cfd8ff);box-shadow:0 0 0 4px rgba(155,114,203,.35),0 0 24px rgba(255,255,255,.6)}
+.ef .lv{display:flex;justify-content:space-between;margin-top:12px;font-size:12px;color:#6f7a91}
+/* pets */
+.pets{display:flex;align-items:flex-end;gap:46px}
+.px{display:grid;image-rendering:pixelated}
+.px span{display:block}
+.shelf{width:980px;height:120px;border-radius:26px;background:#12141a;margin-top:-6px}
+</style></head><body>
+<div class="bg"></div><div class="grid"></div>
+<div class="head"><div class="eb" id="eb"></div><h2 id="h"></h2><div class="ds" id="d"></div></div>
+<div class="stage">
+ <div class="scene" id="palettes"></div>
+ <div class="scene col" id="prism">
+  <div class="bigc rim glow">继续<span class="g">，把测试也跑一遍再提交</span><span class="kb">Tab</span>
+   <div class="foot"><span>Seven 外观 · 棱镜边光贴合超椭圆圆角</span><span class="chip">DeepSeek V4 · 高</span></div></div>
+  <div class="cands"><div class="cand on">① 把测试也跑一遍再提交</div><div class="cand">② 先看下改动范围</div><div class="cand">③ 顺手更新 CHANGELOG</div><div class="cand"><span class="kb" style="margin:0">⇧Tab</span> 换一条</div></div>
+ </div>
+ <div class="scene" id="picker">
+  <div class="pk">
+   <div class="sr"><span>🔍 搜索模型…</span><span class="kb" style="margin:0">⌘⇧M</span></div>
+   <div class="cols">
+    <div class="cl"><h4>路由组</h4>
+     <div class="r on"><i style="background:#4f7cff"></i>DeepSeek V4<em>★</em></div>
+     <div class="r"><i style="background:#9B72CB"></i>DeepSeek R2</div>
+     <h4 style="margin-top:14px">CODEX</h4>
+     <div class="r"><i style="background:#10a37f"></i>GPT · Codex</div></div>
+    <div class="cl"><h4>ANTIGRAVITY</h4>
+     <div class="r"><i style="background:#669DF6"></i>Gemini Pro</div>
+     <div class="r"><i style="background:#D97757"></i>Claude Sonnet<em>★</em></div>
+     <h4 style="margin-top:14px">AWS QUICK</h4>
+     <div class="r"><i style="background:#ff9900"></i>Smart</div></div>
+   </div>
+   <div class="ef"><div class="tt"><span>推理等级</span><span style="color:#fff">高</span></div><div class="tk"><div class="fl"></div><div class="kn"></div></div>
+    <div class="lv"><span>最低</span><span>低</span><span>中</span><span>高</span><span>最高</span></div></div>
+  </div>
+ </div>
+ <div class="scene col" id="pets"><div class="pets" id="pw"></div><div class="shelf rim"></div></div>
+</div>
+<script>
+const S={
+ palettes:['PALETTES','四套光学配色','深色黑曜 · 暖炭，浅色晶白 · 暖陶，8 档强调色与 3 档圆角'],
+ prism:['PRISM · NEXT PROMPT','棱镜边光 · 下一步提示词','回复一停就给三条方向不同的建议，Tab 填入，⇧Tab 换一条'],
+ picker:['MODEL PICKER','统一模型与推理选择器','固定宽度双栏、搜索收藏、离线品牌标识，推理等级一拨就换'],
+ pets:['PIXEL COMPANIONS','像素伙伴舞台','Clawd、小猫、迷你蟹与 Deepy 像素鲸鱼，可拖拽、会干活']};
+const k=new URLSearchParams(location.search).get('s')||'palettes';
+document.getElementById(k).classList.add('on');[eb.textContent,h.textContent,d.textContent]=S[k];
+const P=[['Obsidian 黑曜','obsidian','#0e0e11','#09090b','#e6e9f0','#2a2d36','#16171c','#669DF6'],['Warm 暖炭','warm','#141413','#10100f','#efe7dc','#2e2a25','#1c1b19','#D97757'],['Crystal 晶白','crystal','#f4f7fb','#e8eef6','#1d2433','#d3dbe7','#ffffff','#3b6fe0'],['Alabaster 暖陶','alabaster','#f6f4ee','#ebe6dc','#2b2620','#ddd5c6','#fffdf8','#b0683d']];
+const pe=document.getElementById('palettes');
+P.forEach(([n,key,bg,sd,fg,mu,cmp,acc])=>{const c=document.createElement('div');c.className='col';
+c.innerHTML=`<div class="pc" style="background:${bg};color:${fg}"><div class="sd" style="background:${sd}">${[70,90,55,80,45].map((v,j)=>`<i style="width:${v}%;background:${j==1?acc:fg};opacity:${j==1?1:.4}"></i>`).join('')}</div>
+<div class="mn"><div class="t">下午好</div><div class="cd" style="background:${cmp};border:1px solid ${mu}"><i style="width:45%;background:${acc}"></i><i style="width:90%;background:${mu}"></i><i style="width:70%;background:${mu}"></i><i style="width:80%;background:${mu}"></i></div>
+<div class="cp rim" style="background:${cmp}"></div></div></div><div class="lab"><b>${n}</b><span>${key} · ${bg}</span></div>`;pe.appendChild(c)});
+const B='#4f7cff',L='#9ab6ff',K='#05070c',O='#D97757',V='#9B72CB',R='#ff6b5a',W='#fff';
+const sprites=[
+ [['........','..BBBB..','.BBBBBB.','BBKBBBBB','BLLLLLBB','.LLLLLB.','..B..B..'],{B,L,K},14],
+ [['.OOOOOO.','OOKOOKOO','OOOOOOOO','OOOOOOOO','.O.OO.O.'],{O,K},16],
+ [['V......V','VV....VV','VVVVVVVV','VKVVVVKV','VVVVVVVV','.VVVVVV.','.V....V.'],{V,K},14],
+ [['R..RR..R','.RRRRRR.','RRKRRKRR','.RRRRRR.','R.R..R.R'],{R,K},11],
+ [['R..RR..R','.RRRRRR.','RRKRRKRR','.RRRRRR.','R.R..R.R'],{R,K},9]];
+const pw=document.getElementById('pw');
+sprites.forEach(([g,m,s])=>{const d=document.createElement('div');d.className='px';d.style.gridTemplateColumns=`repeat(8,${s}px)`;d.style.gridAutoRows=s+'px';
+g.join('').split('').forEach(ch=>{const e=document.createElement('span');e.style.background=m[ch]||'transparent';d.appendChild(e)});pw.appendChild(d)});
+</script></body></html>
