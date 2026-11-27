@@ -79,9 +79,10 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
     if (waitingOnUser) {
       return dedupeSuggestions([
         'Done, continue',
-        'Already authorized, go ahead',
-        'Done, next step',
+        'Authorized, what next',
+        'Anything else for me',
         'Skip it, do the rest',
+        'Did it, no change though',
       ]);
     }
     if (/(option\s*[1a]|approach\s*[1a]|which\s+(one|option|approach)|prefer\s+option|1\.\s+.+\n\s*2\.)/i.test(body)) {
@@ -90,21 +91,27 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
         'Option 1',
         'Option 2',
         'What is the real difference',
+        'Can we try both',
+        'What does the second one buy me',
       ]);
     }
     if (/(refresh|reload|test|verify|passed|built|deployed|fixed|updated|ready)/i.test(tail)) {
       return dedupeSuggestions([
-        'Tested, continue',
-        'Looks fine, go on',
+        'Continue',
+        'Looks fine',
         'Still broken',
-        'Commit it',
+        'No change after refresh',
+        'Is it faster now',
+        'What should I check',
       ]);
     }
     if (/(error|failed|blocked|bug|issue|root cause|exception)/i.test(tail)) {
       return dedupeSuggestions([
         'Just fix it',
-        'Find the root cause',
-        'Is there something simpler',
+        'What does that mean',
+        'Why did it happen',
+        'Could it break something else',
+        'Will it happen again',
         'Check the same spots too',
       ]);
     }
@@ -112,25 +119,30 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
       return dedupeSuggestions([
         'Do it',
         'Go with yours',
-        'Wait, one more thing',
-        'Skip this one',
+        'Hold on, one more thing',
+        'Why do you suggest that',
+        'How long will it take',
+        'Is there another way',
       ]);
     }
     return dedupeSuggestions([
       'Continue',
-      'Just fix it',
-      'Test it for me',
-      'Be more specific',
+      'What does that mean',
+      'What does it affect',
+      'How much does it cost',
+      'Is there a simpler way',
+      'What do other people use',
     ]);
   }
 
-  // 中文：用户说话极简、直接、不客套
+  // 中文：他的口吻，但每条换一个方向，不要都是「继续」
   if (waitingOnUser) {
     return dedupeSuggestions([
       '已经弄好了，继续',
-      '授权完了，继续',
-      '好了，下一步',
-      '这个跳过，先做别的',
+      '授权完了，然后呢',
+      '弄好了，还有别的要我做吗',
+      '这一步跳过，先弄别的',
+      '弄了，怎么没反应',
     ]);
   }
 
@@ -143,6 +155,8 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
       '选第一个',
       '选第二个',
       '两者区别说下',
+      '第二个好在哪',
+      '能不能两个都试',
     ]);
   }
 
@@ -152,7 +166,9 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
       '继续',
       '可以',
       '还是不行',
-      '提交吧',
+      '我试了，没问题',
+      '刷新后没变化',
+      '现在比以前快吗',
     ]);
   }
 
@@ -162,6 +178,8 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
       '直接修掉',
       '这是什么意思',
       '为什么会这样',
+      '会不会影响别的地方',
+      '以后还会不会再犯',
       '同类也一起查',
     ]);
   }
@@ -171,8 +189,10 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
     return dedupeSuggestions([
       '可以，做吧',
       '行',
-      '等一下，我补充',
       '这个先不做',
+      '为什么建议这样做',
+      '要多久',
+      '有没有别的做法',
     ]);
   }
 
@@ -181,7 +201,9 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
       '按这个做',
       '有没有更省事的',
       '要花多少钱',
-      '继续',
+      '别人家用的是什么',
+      '会不会有风险',
+      '先小范围试试',
     ]);
   }
 
@@ -190,6 +212,8 @@ export function buildLocalSuggestions({ user = '', assistant = '', zh = true } =
     '这是什么意思',
     '对我有什么影响',
     '要花多少钱',
+    '有没有更简单的办法',
+    '别人是怎么做的',
   ]);
 }
 
@@ -486,13 +510,14 @@ export function createPromptSuggestController({ getSettings }) {
     if (source === 'model') failedSigs.delete(sigKey);
     const prev = cacheBySig.get(sigKey);
     const list = Array.isArray(seenList) && seenList.length
-      ? seenList.slice(-5)
+      ? seenList.slice(-8)
       : [text];
+    const pool = Array.isArray(localPool) && localPool.length ? localPool : (prev?.localPool || [text]);
     setBoundedMap(cacheBySig, sigKey, {
       text,
       seen: list,
       source,
-      localPool: localPool || prev?.localPool || null,
+      localPool: pool,
       localIdx: typeof localIdx === 'number' ? localIdx : (prev?.localIdx || 0),
     });
   }
@@ -534,7 +559,7 @@ export function createPromptSuggestController({ getSettings }) {
     return true;
   }
 
-  async function fetchSuggestionText({ user, assistant, zh, model, exclude = [] }) {
+  async function fetchSuggestions({ user, assistant, zh, model, exclude = [] }) {
     const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -548,8 +573,10 @@ export function createPromptSuggestController({ getSettings }) {
       }),
     });
     const j = await res.json();
-    const next = typeof j?.text === 'string' ? j.text.trim() : '';
-    return j?.ok && next ? next : '';
+    const list = Array.isArray(j?.texts)
+      ? j.texts.map((t) => String(t || '').trim()).filter(Boolean)
+      : (typeof j?.text === 'string' && j.text.trim() ? [j.text.trim()] : []);
+    return j?.ok ? list : [];
   }
 
   async function request({ force = false, silent = false } = {}) {
@@ -594,7 +621,7 @@ export function createPromptSuggestController({ getSettings }) {
       renderGhost(suggestion, sigKey);
     }
     try {
-      const next = await fetchSuggestionText({
+      const batch = await fetchSuggestions({
         user: ctx.user,
         assistant: ctx.assistant,
         zh: isZhUi(s),
@@ -604,9 +631,10 @@ export function createPromptSuggestController({ getSettings }) {
       inflightSigs.delete(sigKey);
       if (seq !== reqSeq || !enabled() || isStreaming) return;
       loadingNext = false;
+      const next = batch[0] || '';
       if (next) {
-        if (!seen.includes(next)) seen = [...seen.slice(-4), next];
-        saveSuggestion(sigKey, next, seen, { source: 'model' });
+        for (const item of batch) if (!seen.includes(item)) seen = [...seen.slice(-7), item];
+        saveSuggestion(sigKey, next, seen, { source: 'model', localPool: batch, localIdx: 0 });
         if (!dismissedSigs.has(sigKey)) {
           renderGhost(next, sigKey);
         }
@@ -661,19 +689,23 @@ export function createPromptSuggestController({ getSettings }) {
     };
     prefetched = entry;
 
-    fetchSuggestionText({
+    fetchSuggestions({
       user: live.user,
       assistant: live.assistant,
       zh: isZhUi(s),
       model,
     })
-      .then((next) => {
+      .then((batch) => {
         if (entry.seq !== reqSeq) return;
         entry.inflight = false;
-        if (next) entry.text = next;
+        if (batch.length) {
+          entry.batch = batch;
+          entry.text = batch[0];
+        }
         const sigKey = makeSigKey(entry.sessionId, entry.turn, entry.model);
         if (entry.text) {
-          saveSuggestion(sigKey, entry.text, [entry.text], { source: 'model' });
+          const batch = Array.isArray(entry.batch) && entry.batch.length ? entry.batch : [entry.text];
+          saveSuggestion(sigKey, entry.text, batch, { source: 'model', localPool: batch, localIdx: 0 });
         }
         if (entry.showOnResolve && !isStreaming && enabled()) {
           if (entry.text && !dismissedSigs.has(sigKey)) {
@@ -772,8 +804,45 @@ export function createPromptSuggestController({ getSettings }) {
     }, SYNC_DEBOUNCE_MS);
   }
 
+  // Shift+Tab / ↻：先在同一批候选里瞬间切换（不发请求），换完了再去要新的一批
   function cycle() {
     if (!enabled() || loadingNext) return;
+    const s = getSettings();
+    const model = s.promptSuggestModel || '';
+    const mainConv = resolveMainConversation(document);
+    const ctx = collectTurnContext(mainConv || document);
+    if (!ctx) return;
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const sigKey = makeSigKey(sessionId, ctx.sig, model);
+    const cached = cacheBySig.get(sigKey);
+    const pool = Array.isArray(cached?.localPool) ? cached.localPool : [];
+    const idx = cached?.localIdx ?? 0;
+
+    if (pool.length > 1) {
+      const nextIdx = idx + 1 < pool.length ? idx + 1 : -1;
+      if (nextIdx >= 0) {
+        const nextText = pool[nextIdx];
+        saveSuggestion(sigKey, nextText, pool, {
+          source: cached.source,
+          localPool: pool,
+          localIdx: nextIdx,
+        });
+        lastSig = sigKey;
+        renderGhost(nextText, sigKey);
+        return;
+      }
+      // 这批看完了：纯本地模式回到开头，配了模型就再要一批没出现过的
+      if (isLocalOnlyModel(model)) {
+        const wrapped = pool[0];
+        saveSuggestion(sigKey, wrapped, pool, { source: 'local', localPool: pool, localIdx: 0 });
+        lastSig = sigKey;
+        renderGhost(wrapped, sigKey);
+        return;
+      }
+    } else if (isLocalOnlyModel(model)) {
+      cycleLocalFallback(sigKey, ctx, s);
+      return;
+    }
     request({ force: true });
   }
 
@@ -819,9 +888,10 @@ export function createPromptSuggestController({ getSettings }) {
     if (match && match.text) {
       // Instant 0ms display from speculative model prefetch
       const sigKey = makeSigKey(sessionId, match.turn, model);
-      seen = [match.text];
+      const batch = Array.isArray(match.batch) && match.batch.length ? match.batch : [match.text];
+      seen = [...batch];
       lastSig = sigKey;
-      saveSuggestion(sigKey, match.text, seen, { source: 'model' });
+      saveSuggestion(sigKey, match.text, seen, { source: 'model', localPool: batch, localIdx: 0 });
       if (!dismissedSigs.has(sigKey)) {
         renderGhost(match.text, sigKey);
       }

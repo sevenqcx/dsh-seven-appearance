@@ -405,46 +405,47 @@ export function createHostHandlers(baseDir) {
           const exclude = Array.isArray(body?.exclude)
             ? body.exclude.map((x) => String(x || '').trim()).filter(Boolean).slice(-5)
             : [];
+          const sysCore = zh
+            ? [
+              '你要替用户（项目负责人）想「他接下来可能说什么」，给出 3 条方向完全不同的候选，每行一条。',
+              '他是谁：项目负责人，不是程序员。他不写代码，关心效果、进度、花多少钱、有什么风险；不懂就问「这是什么意思」。',
+              '说话风格：短、直接、不客套，2～18 个字。',
+              '三条必须落在不同方向，例如：①追问原理或含义 ②问影响和风险 ③问花费或值不值 ④要求换个更省事的做法 ⑤要求对比另一个方案 ⑥要求看效果或演示 ⑦质疑某个判断 ⑧推进到下一步。',
+              '硬性要求：',
+              '1. 只输出 3 行，不要编号、不要引号、不要解释；',
+              '2. 不要出现「好的」「我这就」「麻烦你」「辛苦了」这类客套；',
+              '3. 不要三行都在说「继续」「好了」这类放之四海皆准的空话，最多一行是这种；',
+              '4. 不要复述助手刚说的话，不要写函数名、报错原文这类只有程序员才说的词；',
+              '5. 每条不超过 18 个汉字，必须贴住这一轮的具体话题。',
+            ]
+            : [
+              "Think of what this project owner might say next; give 3 candidates, each on its own line, in clearly different directions.",
+              'He is a project owner, not a programmer: he cares about results, progress, cost and risk.',
+              'Style: short, direct, no pleasantries, 2-12 words each.',
+              'The three must differ in angle: ask meaning, ask impact/risk, ask cost, propose a simpler way, compare an alternative, ask for a demo, challenge a claim, or move on.',
+              "Rules: 3 lines only, no numbering, no quotes, no explanation; no filler; at most one of them may be a generic \"continue\"; do not restate the assistant; no developer jargon; stay on this turn's topic.",
+            ];
           const sys = [
-            ...(zh
-              ? [
-                '你要预测用户（项目负责人）下一条会发的话，以他本人第一人称口吻，只输出这一句。',
-                '他是谁：项目负责人，不是程序员。他不写代码，关心的是效果、进度、花多少钱和有什么风险；遇到不懂的地方会直接问「这是什么意思」「为什么要这样」「对我有什么影响」「要花多少钱」「能不能再快点」。',
-                '他的说话风格：极简、直接、不客套，常见是 2～15 字的指令或追问，例如「继续」「已经弄好了」「直接改」「选第一个」「还是不行」。',
-                '硬性要求：',
-                '1. 只输出这一句，不加引号、不加解释、不加序号；',
-                '2. 不要出现「好的」「我这就」「麻烦你」「辛苦了」「你等我」这类客套话和客服腔；',
-                '3. 不要复述或转述助手刚说过的话；',
-                '4. 说他会说的话：不要写函数名、报错原文、打包入口这类只有程序员才会说的词，优先用他能听懂的日常说法；',
-                '5. 拿不准他要问什么时，优先猜他最常用的那一类：追问「这是什么意思／为什么／影响／费用／进度」；',
-                '6. 必须贴住这一轮的具体话题，不同话题不能给出同一句；',
-                '7. 长度不超过 20 个汉字。',
-              ]
-              : [
-                "Predict the user's next message in his own first-person voice; output only that line.",
-                'Who he is: a project owner, not a programmer. He cares about results, progress, cost and risk, and asks "what does that mean", "why", "what does it affect", "how much", "can it be faster".',
-                'Style: extremely terse and direct, no pleasantries — like "continue", "done, go on", "just fix it", "option 1".',
-                'Rules: one line only, no quotes, no explanation, no filler such as "sure" / "I will" / "please"; do not restate the assistant; avoid developer jargon he would not say; when unsure, prefer his most common kind of follow-up: meaning, reason, impact, cost or progress; stay on this turn\'s topic; under 15 words.',
-              ]),
+            ...sysCore,
             ...(handoff
               ? [zh
-                ? '本轮补充：助手把动作交回给了他（点按钮／授权／粘贴验证码／扫码／刷新）。按「他早就做完了」来写，写做完之后要推进的事，不要让他去做这一步。'
-                : 'Extra: the assistant handed an action back to him. Assume he already finished it and write what he says right after, not a request to do it.']
+                ? '本轮补充：助手把动作交回给了他（点按钮／授权／粘贴验证码／扫码／刷新）。三条都按「他早就做完了」来写，写做完之后想推进什么，不要让他去做这一步。'
+                : 'Extra: the assistant handed an action back to him. All three lines assume he already did it and move on from there.']
               : []),
           ].join('\n');
           let promptContent = user ? `用户：${user}\n\n助手：${assistant}` : `助手：${assistant}`;
           if (exclude.length > 0) {
             promptContent += zh
-              ? `\n\n请换一个不同角度的建议，不要重复：\n- ${exclude.join('\n- ')}`
-              : `\n\nSuggest a different angle; do not repeat:\n- ${exclude.join('\n- ')}`;
+              ? `\n\n这三条不要和下面重复，换别的方向：\n- ${exclude.join('\n- ')}`
+              : `\n\nDo not repeat these; pick other angles:\n- ${exclude.join('\n- ')}`;
           }
           const res = await globalThis.fetch(`${base}/v1/chat/completions`, {
             method: 'POST',
             headers: { 'content-type': 'application/json', ...(key ? { authorization: `Bearer ${key}` } : {}) },
             body: JSON.stringify({
               model,
-              max_tokens: 72,
-              temperature: exclude.length > 0 ? 0.75 : 0.35,
+              max_tokens: 160,
+              temperature: exclude.length > 0 ? 0.9 : 0.8,
               ...buildSuggestRequestExtra(model),
               messages: [
                 { role: 'system', content: sys },
@@ -456,13 +457,25 @@ export function createHostHandlers(baseDir) {
           if (!res.ok) throw new Error(`magpie ${res.status}`);
           const j = await res.json();
           const raw = String(j?.choices?.[0]?.message?.content || '').trim();
-          const firstLine = raw.split(/\r?\n/).map((line) => line.trim()).find(Boolean) || '';
-          let text = firstLine.replace(/^["“「'‘]+|["”」'’]+$/g, '').trim().slice(0, 120);
-          // 交回动作的场景：输出里没有「已完成」的意思（还是在让他去做），换成「已做完」的写法
-          if (handoff && !/(已经|好了|完了|弄好|完成|搞定|done)/i.test(text)) {
-            text = zh ? '已经弄好了，继续' : 'Done, continue';
+          const lines = raw
+            .split(/\r?\n/)
+            .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.、)]|\uff08?\d+\uff09?)\s*/, '').replace(/^["“「'‘]+|["”」'’]+$/g, '').trim())
+            .filter((line) => line.length >= 2 && line.length <= 60);
+          const seenText = new Set();
+          const texts = [];
+          for (const line of lines) {
+            let text = line.slice(0, 60);
+            const asksToDo = /(粘贴|点一下|点继续|去点|复制|扫码|打开|授权|你来|你做)/.test(text);
+            const saysDone = /(已经|好了|完了|弄好|完成|搞定|done)/i.test(text);
+            if (handoff && asksToDo && !saysDone) {
+              text = zh ? '已经弄好了，继续' : 'Done, continue';
+            }
+            if (seenText.has(text)) continue;
+            seenText.add(text);
+            texts.push(text);
+            if (texts.length >= 3) break;
           }
-          return Response.json({ ok: Boolean(text), text });
+          return Response.json({ ok: texts.length > 0, text: texts[0] || '', texts });
         } catch (error) {
           return Response.json({ ok: false, error: error?.message || 'suggest failed' });
         }

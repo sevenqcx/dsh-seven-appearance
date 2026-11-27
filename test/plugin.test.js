@@ -274,7 +274,10 @@ test('prompt suggestions use the completed main turn and the selected Magpie mod
   const req = (model) => new Request('http://localhost', { method: 'POST', body: JSON.stringify({ assistant: '实际回复', model }) });
   const listed = await (await route.fetch(new Request('http://localhost'))).json();
   assert.deepEqual(listed.models, [{ id: 'codex/example', label: 'Example' }]);
-  assert.deepEqual(await (await route.fetch(req('codex/example'))).json(), { ok: true, text: '请继续' });
+  const oneShot = await (await route.fetch(req('codex/example'))).json();
+  assert.equal(oneShot.ok, true);
+  assert.equal(oneShot.text, '请继续');
+  assert.deepEqual(oneShot.texts, ['请继续']);
   assert.equal((await route.fetch(req('unknown/model'))).status, 400);
   assert.equal(completion.mock.calls.filter(({ arguments: [url] }) => url.endsWith('/chat/completions')).length, 1);
 
@@ -282,8 +285,9 @@ test('prompt suggestions use the completed main turn and the selected Magpie mod
   const chatCall = completion.mock.calls.find(({ arguments: [url] }) => String(url).endsWith('/chat/completions'));
   const sentSystem = JSON.parse(chatCall.arguments[1].body).messages[0].content;
   assert.match(sentSystem, /不客套|客套/);
-  assert.match(sentSystem, /已经弄好了|早做完/);
-  assert.match(sentSystem, /20 个汉字/);
+  assert.match(sentSystem, /3 条|3 lines/);
+  assert.match(sentSystem, /方向|angle/);
+  assert.match(sentSystem, /18 个汉字/);
 });
 
 test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Tab, and accepts on Tab', async (t) => {
@@ -431,7 +435,10 @@ test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Ta
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
     const body = JSON.parse(options.body);
     bodies.push(body);
-    return Response.json({ ok: true, text: bodies.length === 1 ? '第一条建议' : '第二条建议' });
+    if (bodies.length === 1) {
+      return Response.json({ ok: true, text: '第一条建议', texts: ['第一条建议', '第二视角', '第三视角'] });
+    }
+    return Response.json({ ok: true, text: '新一批建议', texts: ['新一批建议'] });
   });
 
   const ctrl = createPromptSuggestController({
@@ -452,19 +459,31 @@ test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Ta
     assert.equal(conv.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
     assert.equal(ghost.children[0].textContent, '第一条建议');
 
-    // Shift+Tab cycles with exclude list
+    // Shift+Tab 先在本批里瞬间切换，不额外请求
     for (const fn of docListeners.get('keydown') || []) {
       fn({ key: 'Tab', shiftKey: true, target: editor, preventDefault() {}, stopPropagation() {} });
     }
-    await new Promise((r) => prevSetTimeout(r, 10));
-    assert.deepEqual(bodies[1].exclude, ['第一条建议']);
-    assert.equal(ghost.children[0].textContent, '第二条建议');
+    assert.equal(ghost.children[0].textContent, '第二视角');
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: true, target: editor, preventDefault() {}, stopPropagation() {} });
+    }
+    assert.equal(ghost.children[0].textContent, '第三视角');
+    assert.equal(bodies.length, 1, '批内切换不该发请求');
+
+    // 这批看完后再换，才去要新的一批，并带上不要重复的候选
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: true, target: editor, preventDefault() {}, stopPropagation() {} });
+    }
+    await new Promise((r) => prevSetTimeout(r, 15));
+    assert.equal(bodies.length, 2);
+    assert.deepEqual(bodies[1].exclude, ['第一条建议', '第二视角', '第三视角']);
+    assert.equal(ghost.children[0].textContent, '新一批建议');
 
     // Tab accepts into composer and clears ghost + host attribute
     for (const fn of docListeners.get('keydown') || []) {
       fn({ key: 'Tab', shiftKey: false, target: editor, preventDefault() {}, stopPropagation() {} });
     }
-    assert.equal(editor.textContent, '第二条建议');
+    assert.equal(editor.textContent, '新一批建议');
     assert.equal(inputHost.getAttribute('data-op-prompt-ghost'), null);
     assert.equal(inputHost.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
   } finally {
@@ -493,8 +512,10 @@ test('prompt suggestion prefetches during streaming for 0ms instant display and 
     method: 'POST',
     body: JSON.stringify({ assistant: '已经完成修改。', model: 'codex/fast' }),
   });
-  assert.deepEqual(await (await route.fetch(postReq())).json(), { ok: true, text: '下一步建议' });
-  assert.deepEqual(await (await route.fetch(postReq())).json(), { ok: true, text: '下一步建议' });
+  const cacheRes1 = await (await route.fetch(postReq())).json();
+  assert.equal(cacheRes1.text, '下一步建议');
+  assert.deepEqual(cacheRes1.texts, ['下一步建议']);
+  assert.equal((await (await route.fetch(postReq())).json()).text, '下一步建议');
   assert.equal(modelFetchCount, 1);
 
   // 2. Verify streaming prefetch shows ghost synchronously at 0ms when streaming stops
@@ -2407,6 +2428,27 @@ test('prompt-suggest passes reasoning_effort minimal for doubao-seed-2 models on
   }))).json();
   assert.equal(r2.ok, true);
   assert.equal('reasoning_effort' in sentBodies[1], false);
+});
+
+test('prompt-suggest returns three divergent candidates and Shift+Tab cycles them without a new request', async (t) => {
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).endsWith('/v1/models')) {
+      return Response.json({ data: [{ id: 'volcengine/doubao-seed-2-0-mini-260428', display_name: 'mini' }] });
+    }
+    return Response.json({
+      choices: [{ message: { content: '1. 这是什么意思\n2. 会不会影响别的地方\n- 要花多少钱\n继续' } }],
+    });
+  });
+  const res = await (await route.fetch(new Request('http://localhost', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ model: 'volcengine/doubao-seed-2-0-mini-260428', assistant: '已改好。', zh: true }),
+  }))).json();
+  assert.equal(res.ok, true);
+  assert.deepEqual(res.texts, ['这是什么意思', '会不会影响别的地方', '要花多少钱']);
+  assert.equal(res.text, '这是什么意思');
+
 });
 
 test('prompt-suggest sends handoff for action-back turns and never asks the user to redo it', async (t) => {
