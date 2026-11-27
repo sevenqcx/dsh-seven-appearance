@@ -1,16 +1,31 @@
 {
-  "name": "dsh-obsidian-prism",
-  "version": "0.4.0",
-  "private": true,
+  "name": "dsh-seven-appearance",
+  "version": "1.0.0",
   "type": "module",
   "description": "Seven 外观（Seven Appearance）DeepSeek Harness 外观与效率套件（基于 GPL-3.0 Obsidian Prism 移植）：四套深浅主题、输入框棱镜流光、背景微光涟漪、统一模型与推理选择器、下一步提示词推荐、划词与右键侧边追问、像素伙伴、本地壁纸与中英双语外观工坊。",
   "license": "GPL-3.0-only",
+  "author": {
+    "name": "Seven7cx",
+    "url": "https://github.com/sevenqcx"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/sevenqcx/dsh-seven-appearance.git"
+  },
+  "homepage": "https://github.com/sevenqcx/dsh-seven-appearance#readme",
+  "bugs": {
+    "url": "https://github.com/sevenqcx/dsh-seven-appearance/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "keywords": [
     "deepseek",
     "harness",
     "dsh",
     "dsh-plugin",
     "theme",
+    "appearance",
     "obsidian-prism",
     "mascot",
     "wallpaper"
@@ -40,7 +55,6 @@
     "README.en.md",
     "CHANGELOG.md",
     "config.example.json",
-    "docs/screenshots/*",
     "index.js",
     "client.js",
     "cordis.patch.yml",

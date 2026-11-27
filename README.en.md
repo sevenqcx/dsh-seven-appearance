@@ -1,4 +1,4 @@
-# Seven Appearance (`dsh-obsidian-prism`)
+# Seven Appearance (`dsh-seven-appearance`)
 
 A GPL-3.0-only DeepSeek Harness adaptation of [Obsidian Prism](https://github.com/RMvdesi/obsidian-prism), providing theme palettes, visual effects, mascots, local wallpapers, unified model & reasoning effort picker, next-prompt suggestions, conversation navigation, and selection/context-menu sidebar actions.
 

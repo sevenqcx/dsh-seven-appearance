@@ -1,8 +1,15 @@
-# Seven 外观 (`dsh-obsidian-prism`)
+# Seven 外观 (`dsh-seven-appearance`)
 
 基于 [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)（GPL-3.0-only）深度移植与定制的 DeepSeek Harness 外观与效率增强插件，涵盖主题配色、棱镜光效、像素伙伴舞台、本地动静态壁纸、统一模型与推理选择器、下一步提示词推荐、划词与右键侧边追问及会话工作台增强。
 
 ## 功能
+
+### v1.0.0
+
+- 正式更名为 **Seven 外观（Seven Appearance）** 并发布公开插件包 `dsh-seven-appearance`。
+- 新增对话区右键菜单与侧边栏追问分支（与划词追问统一开关，按住 Shift 保留系统菜单）。
+- 新增下一步提示词推荐：空输入框内联半透明幽灵文字，回复停住瞬间出建议（本地零延迟兜底 + 轻量模型流式预取升级，支持纯本地模式、`Tab` 填入、`Shift+Tab` 换一条）。
+- 修复棱镜流光边框与超椭圆圆角贴合、正圆/胶囊保形，以及侧边追问栏防串框。
 
 ### v0.4.0
 

@@ -1249,7 +1249,7 @@ test('built client.js loads cleanly via window.__ModuleLoader__', () => {
   sandbox.globalThis = sandbox;
   vm.runInNewContext(code, sandbox);
   assert.ok(registered);
-  assert.equal(registered.id, 'dsh-obsidian-prism');
+  assert.equal(registered.id, 'dsh-seven-appearance');
   const plugin = registered.factory((name) => {
     if (name === 'react') return { createElement: () => null, useState: () => [null, () => {}], useEffect: () => {}, useRef: () => ({}), Fragment: Symbol('Fragment') };
     if (name === 'react-dom') return { createPortal: (x) => x };
