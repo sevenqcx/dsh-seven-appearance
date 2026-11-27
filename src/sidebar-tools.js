@@ -206,10 +206,16 @@ export function createSidebarTools({ React, require: requireRuntime }) {
       });
     };
 
-    const registered = [];
+    // The More menu only lists registrations made through the slot's own inject:
+    // registering at apply time lands before the region declares and is dropped.
+    let disposeSlotRegistrations = null;
     try {
-      registered.push(ctx.slots.register({ name: 'sidebar.panellist.actions', id: 'seven-appearance-hidden-panels', order: -10 }, HiddenPanelsMenu));
-      registered.push(ctx.slots.register({ name: 'sidebar.panellist.actions', id: 'seven-appearance-edit-sidebar', order: 10 }, EditSidebarMenuItem));
+      disposeSlotRegistrations = ctx.slots.inject('sidebar.panellist.actions', () => {
+        const regs = [];
+        regs.push(ctx.slots.register({ name: 'sidebar.panellist.actions', id: 'seven-appearance-hidden-panels', order: -10 }, HiddenPanelsMenu));
+        regs.push(ctx.slots.register({ name: 'sidebar.panellist.actions', id: 'seven-appearance-edit-sidebar', order: 10 }, EditSidebarMenuItem));
+        return () => { for (const reg of regs) { try { reg?.dispose?.(); } catch { /* already gone */ } } };
+      });
     } catch (error) {
       console.warn('[dsh-seven-appearance] sidebar.panellist.actions registration failed:', error);
     }
@@ -228,7 +234,7 @@ export function createSidebarTools({ React, require: requireRuntime }) {
     }
 
     function dispose() {
-      for (const reg of registered) { try { reg?.dispose?.(); } catch { /* already gone */ } }
+      if (disposeSlotRegistrations) { try { disposeSlotRegistrations(); } catch { /* already gone */ } disposeSlotRegistrations = null; }
       if (unsubscribePins) { unsubscribePins(); unsubscribePins = null; }
       if (retryTimer !== null) { clearTimeout(retryTimer); retryTimer = null; }
       if (modalRoot) { try { modalRoot.unmount(); } catch { /* already gone */ } modalRoot = null; }

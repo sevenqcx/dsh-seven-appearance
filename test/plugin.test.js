@@ -2337,3 +2337,63 @@ test('main composer lookup ignores sidebar side-question cards across controller
   assert.doesNotMatch(mascotSrc, /document\.querySelector\(\s*['"]\[data-composer-card\]['"]\s*\)/);
   assert.doesNotMatch(rimSrc, /document\.querySelector\(\s*['"]\[data-composer-card\]['"]\s*\)/);
 });
+
+test('prompt-suggest passes reasoning_effort minimal for doubao-seed-2 models only', async (t) => {
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  const sentBodies = [];
+  t.mock.method(globalThis, 'fetch', async (url, init) => {
+    if (String(url).endsWith('/v1/models')) {
+      return Response.json({
+        data: [
+          { id: 'volcengine/doubao-seed-2-0-mini-260428', display_name: 'doubao-seed-2-0-mini' },
+          { id: 'qwen-cn/qwen-flash-2025-07-28', display_name: 'qwen-flash' },
+        ],
+      });
+    }
+    sentBodies.push(JSON.parse(String(init?.body || '{}')));
+    return Response.json({ choices: [{ message: { content: '继续测试一下' } }] });
+  });
+
+  const r1 = await (await route.fetch(new Request('http://localhost', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'volcengine/doubao-seed-2-0-mini-260428',
+      user: '测试',
+      assistant: '已切换完成。',
+      zh: true,
+    }),
+  }))).json();
+  assert.equal(r1.ok, true);
+  assert.equal(sentBodies[0].reasoning_effort, 'minimal');
+
+  const r2 = await (await route.fetch(new Request('http://localhost', {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({
+      model: 'qwen-cn/qwen-flash-2025-07-28',
+      user: '测试',
+      assistant: '已切换完成。',
+      zh: true,
+    }),
+  }))).json();
+  assert.equal(r2.ok, true);
+  assert.equal('reasoning_effort' in sentBodies[1], false);
+});
+
+test('sidebar tools register the More-menu entries through the slot inject, not at apply time', () => {
+  const source = readFileSync(new URL('../src/sidebar-tools.js', import.meta.url), 'utf8');
+  assert.match(
+    source,
+    /ctx\.slots\.inject\('sidebar\.panellist\.actions', \(\) => \{/,
+    'Sidebar actions must be registered inside the slot inject; apply-time registrations never reach the More menu',
+  );
+  assert.match(source, /id: 'seven-appearance-edit-sidebar'/, 'The "Edit sidebar…" entry must be registered');
+  assert.match(source, /isZh\(\) \? '编辑侧栏…' : 'Edit sidebar…'/, 'The menu label must stay bilingual');
+  const outsideInject = source
+    .split("ctx.slots.inject('sidebar.panellist.actions'")[0];
+  assert.ok(
+    !outsideInject.includes("name: 'sidebar.panellist.actions'"),
+    'No sidebar.panellist.actions registration may live outside the inject callback',
+  );
+});
