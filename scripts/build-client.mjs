@@ -37,6 +37,7 @@ const modules = [
   'src/provider-logos.js',
   'src/effort-slider-controller.js',
   'src/studio-ui.js',
+  'src/sidebar-tools.js',
   'src/client-main.js',
 ].map(readMod);
 
@@ -100,7 +101,7 @@ ${crystalCoreSource}
 
 ${modules.join('\n')}
 
-    return createClientPlugin({ React, createPortal, getRig, getRippleCore, getCrystalCore });
+    return createClientPlugin({ React, createPortal, getRig, getRippleCore, getCrystalCore, requireRuntime: require });
   },
 });
 `;

@@ -22,6 +22,7 @@ import {
   createPickerToggleRegistry,
 } from './effort-slider-controller.js';
 import { createStudioComponents } from './studio-ui.js';
+import { createSidebarTools } from './sidebar-tools.js';
 
 function resolveEffectiveTheme(settings) {
   if (settings.themeMode === 'dark') return 'dark';
@@ -95,7 +96,7 @@ function clearRootAttributes() {
   }
 }
 
-export function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCrystalCore }) {
+export function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCrystalCore, requireRuntime = null }) {
   return {
     inject: ['slots'],
     apply(ctx) {
@@ -254,6 +255,13 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
 
         return cleanup;
       }, 'dsh-obsidian-prism: runtime');
+
+      // 2b. Sidebar tools (merged from dsh-grouped-nav): "Edit sidebar…" panel
+      // pinning, local-agent removal, and the "Back to DSH" button in DS Bot.
+      ctx.effect(() => {
+        const sidebarTools = createSidebarTools({ React, require: requireRuntime });
+        return sidebarTools.start(ctx);
+      }, 'dsh-seven-appearance: sidebar tools');
 
       // 3. Native DSH Settings section
       ctx.slots.inject('settings.section', () =>
