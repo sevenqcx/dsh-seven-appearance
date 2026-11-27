@@ -497,7 +497,7 @@ export function createEffectsController({ getSettings }) {
     if (!node || node.nodeType !== Node.TEXT_NODE) return false;
     const parent = node.parentElement;
     if (!parent) return false;
-    if (parent.closest('[data-composer-card], .op-drawer, .op-outline-rail, .op-selection-pill, .op-selection-toast, .op-status-vial, [data-op-ui="1"], pre, code, script, style, button')) {
+    if (parent.closest('[data-composer-card], .op-drawer, .op-outline-rail, .op-selection-explain, .op-selection-toast, .op-status-vial, [data-op-ui="1"], pre, code, script, style, button')) {
       return false;
     }
     return true;

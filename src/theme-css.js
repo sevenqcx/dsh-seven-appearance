@@ -645,7 +645,7 @@ html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] #root
   background: transparent !important;
 }
 html[data-op-enabled="1"][data-op-has-wallpaper="1"] #root,
-html[data-op-enabled="1"][data-op-has-wallpaper="1"] body > div:not(.op-wallpaper-layer):not(.op-ambient-aura):not(.op-smooth-caret):not(.op-outline-rail):not(.op-drawer-backdrop):not(.op-selection-pill):not(.op-selection-toast):not(.op-context-menu) {
+html[data-op-enabled="1"][data-op-has-wallpaper="1"] body > div:not(.op-wallpaper-layer):not(.op-ambient-aura):not(.op-smooth-caret):not(.op-outline-rail):not(.op-drawer-backdrop):not(.op-selection-explain):not(.op-selection-toast):not(.op-context-menu) {
   position: relative;
   z-index: 1;
 }
@@ -1605,52 +1605,24 @@ html[data-op-enabled="1"][data-op-facets="1"] kbd {
   color: var(--op-status-err, #E5534B);
 }
 
-/* ── Selection Quick-Ask Floating Pill & Toast ────────────────────────── */
-@keyframes op-pill-in {
-  from { opacity: 0; transform: translateY(5px) scale(0.96); }
-  to { opacity: 1; transform: translateY(0) scale(1); }
-}
-.op-selection-pill {
-  position: fixed;
-  z-index: 1150;
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  padding: 4px;
+/* ── 划词解释：挂在 DSH 自己的「引用文本」条里 ────────────────────────── */
+.op-selection-explain {
+  margin-left: 6px;
+  padding: 5px 10px;
+  border: none;
   border-radius: 999px;
   corner-shape: round;
-  background: var(--op-menu-bg, rgba(16, 17, 22, 0.96));
-  border: 1px solid var(--op-border-2, rgba(255, 255, 255, 0.16));
-  box-shadow: 0 10px 30px -6px rgba(0, 0, 0, 0.42), inset 0 1px 0 var(--op-specular, rgba(255, 255, 255, 0.08));
-  backdrop-filter: blur(16px) saturate(1.18);
-  animation: op-pill-in 150ms var(--op-ease-out);
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
-}
-.op-selection-btn {
-  border: 0;
-  background: transparent;
-  color: var(--op-fg-2, #C4C4CE);
-  border-radius: 999px;
-  corner-shape: round;
-  padding: 4px 10px;
-  font-size: 11.5px;
-  font-weight: 500;
-  line-height: 1.3;
+  background: var(--dsw-alias-button-floating-fill);
+  --dsw-elevation-stroke-color: var(--dsw-alias-border-l3);
+  box-shadow: var(--dsw-elevation-panel);
+  color: var(--dsw-alias-label-primary);
+  font: var(--dsw-font-xs-13);
   cursor: pointer;
-  white-space: nowrap;
-  transition: background-color 120ms ease, color 120ms ease;
+  vertical-align: middle;
 }
-.op-selection-btn:hover {
-  background: var(--op-accent-soft, rgba(102, 157, 246, 0.16));
-  color: var(--op-fg-1, #F2F2F5);
-}
-.op-selection-btn-primary {
-  background: var(--op-accent, #669DF6);
-  color: var(--op-accent-fg, #FFFFFF);
-}
-.op-selection-btn-primary:hover {
-  background: color-mix(in srgb, var(--op-accent, #669DF6) 86%, #FFFFFF);
-  color: var(--op-accent-fg, #FFFFFF);
+.op-selection-explain:hover,
+.op-selection-explain:focus-visible {
+  background: var(--dsw-alias-button-floating-hover);
 }
 .op-selection-toast {
   position: fixed;
@@ -3002,7 +2974,7 @@ html[data-op-effective-theme="light"] .op-effort-knob {
   .op-ambient-aura::before,
   .op-ambient-aura::after,
   html[data-op-enabled="1"] [data-composer-card]::before,
-  .op-selection-pill,
+  .op-selection-explain,
   html[data-op-enabled="1"][data-op-choreography="1"] [data-op-arrive="1"],
   html[data-op-enabled="1"][data-op-choreography="1"] details[open][data-op-unfold="1"] > :not(summary),
   html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"],

@@ -210,6 +210,7 @@ export function createExplainPopover({ getSettings }) {
     if (busy) return;
     const seq = ++run;
     busy = true;
+    const picked = getSettings()?.promptSuggestModel || '';
     if (sendEl) sendEl.disabled = true;
     setStatus(zh() ? '正在解释…' : 'Reading…');
     const answerEl = appendTurn('assistant', '');
@@ -224,6 +225,7 @@ export function createExplainPopover({ getSettings }) {
           context,
           role,
           zh: zh(),
+          ...(picked && picked !== 'local' ? { model: picked } : {}),
           ...(question ? { question } : {}),
           ...(history.length ? { history } : {}),
         }),

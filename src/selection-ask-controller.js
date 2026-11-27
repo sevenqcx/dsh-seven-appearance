@@ -257,347 +257,204 @@ function getNativeTextSurfaceRect() {
   return null;
 }
 
+const SURFACE_SELECTOR = '[data-text-interaction-surface]';
+const ACTION_CLASS = 'op-selection-explain';
+const EXCLUDE_SELECTOR = [
+  '[data-composer-card]',
+  '[data-composer-dock]',
+  '.op-drawer',
+  '.op-drawer-backdrop',
+  '.op-outline-rail',
+  ACTION_CLASS,
+  '.op-explain',
+  '.op-status-vial',
+  '.op-context-menu',
+  '[data-op-ui="1"]',
+  'textarea',
+  'input',
+  'select',
+  '[contenteditable="true"]',
+  'nav',
+  'aside',
+  '[role="dialog"]',
+].join(',');
+
+function textSurfaceVisible(el) {
+  try {
+    if (typeof getComputedStyle === 'function') {
+      const cs = getComputedStyle(el);
+      if (cs.display === 'none' || cs.visibility === 'hidden' || Number(cs.opacity) === 0) return false;
+    }
+    if (el.getAttribute?.('aria-hidden') === 'true') return false;
+    const r = el.getBoundingClientRect?.();
+    return Boolean(r && r.width > 4 && r.height > 4);
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * DSH 自己那块划词工具条（此刻可见的那一块）。
+ * @param doc - 文档对象。
+ * @returns 可见的原生工具条元素，没有则 null。
+ */
+export function findSelectionSurface(doc = document) {
+  if (!doc || typeof doc.querySelectorAll !== 'function') return null;
+  let list;
+  try {
+    list = doc.querySelectorAll(SURFACE_SELECTOR);
+  } catch {
+    return null;
+  }
+  for (const el of list) {
+    if (textSurfaceVisible(el)) return el;
+  }
+  return null;
+}
+
+/**
+ * 当前选区是否可以解释。
+ * @param sel - window.getSelection() 的结果。
+ * @returns 选中的文字与选区起点元素，不合格时返回 null。
+ */
+export function readExplainSelection(sel) {
+  if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
+  const text = String(sel.toString() || '').trim();
+  const minLen = /[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(text) ? 1 : 2;
+  if (text.length < minLen || text.length > 3000) return null;
+  const range = sel.getRangeAt(0);
+  const nodeOf = (node) => (node ? (node.nodeType === 1 ? node : node.parentElement || null) : null);
+  const anchorEl = nodeOf(sel.anchorNode) || nodeOf(range.startContainer);
+  const focusEl = nodeOf(sel.focusNode) || nodeOf(range.endContainer);
+  if (!anchorEl || !focusEl) return null;
+  if (anchorEl.closest?.(EXCLUDE_SELECTOR) || focusEl.closest?.(EXCLUDE_SELECTOR)) return null;
+  const conversation = anchorEl.closest?.('[data-conversation-session]');
+  if (!conversation || !conversation.contains(focusEl)) return null;
+  return { text, anchorEl };
+}
+
+/**
+ * 在原生工具条里补一个「解释」，和「引用文本」同一条、同一刻出现。
+ * @param options.surface - 原生工具条元素。
+ * @param options.zh - 是否中文界面。
+ * @param options.onCreate - 新建按钮时回调（用来挂点击）。
+ * @returns 工具条里的解释按钮。
+ */
+export function ensureExplainAction({ surface, doc = document, zh, onCreate }) {
+  let button = surface.querySelector(`.${ACTION_CLASS}`);
+  if (!button) {
+    button = doc.createElement('button');
+    button.type = 'button';
+    button.className = ACTION_CLASS;
+    button.setAttribute('data-op-ui', '1');
+    if (typeof onCreate === 'function') onCreate(button);
+    surface.appendChild(button);
+  }
+  const label = zh ? '解释' : 'Explain';
+  if (button.textContent !== label) button.textContent = label;
+  button.setAttribute('aria-label', zh ? '解释选中的文字' : 'Explain the selection');
+  return button;
+}
+
+/**
+ * 划词解释入口：不自己画浮条，只在 DSH 的「引用文本」条里追加一个动作。
+ * @param options.getSettings - 读取插件设置。
+ * @param options.openExplain - 打开解释小窗。
+ * @returns 启动、刷新与销毁接口。
+ */
 export function createSelectionAskController({ getSettings, openExplain }) {
-  let pillEl = null;
-  let toastEl = null;
-  let toastTimer = null;
-  let evalTimer = null;
-  let repositionRaf = 0;
-  let pointerSelecting = false;
-  let activeText = '';
-  let activeSessionId = '';
-  let activeAnchor = null;
-  let activeRect = null;
+  let buttonEl = null;
+  let observer = null;
+  let pending = false;
   let disposed = false;
+  let current = { text: '', anchorEl: null };
 
-  const EXCLUDE_SELECTOR = [
-    '[data-composer-card]',
-    '[data-composer-dock]',
-    '[data-text-interaction-surface]',
-    '.op-drawer',
-    '.op-drawer-backdrop',
-    '.op-outline-rail',
-    '.op-selection-pill',
-    '.op-explain',
-    '.op-status-vial',
-    '.op-code-fold-bar',
-    '[data-op-ui="1"]',
-    'textarea',
-    'input',
-    'select',
-    '[contenteditable="true"]',
-    'nav',
-    'aside',
-    '[role="dialog"]',
-  ].join(',');
-
-  function clearToast() {
-    if (toastTimer) {
-      clearTimeout(toastTimer);
-      toastTimer = null;
-    }
-    if (toastEl && toastEl.parentNode) toastEl.parentNode.removeChild(toastEl);
-    toastEl = null;
+  function removeAction() {
+    if (buttonEl && buttonEl.parentNode) buttonEl.parentNode.removeChild(buttonEl);
+    buttonEl = null;
+    current = { text: '', anchorEl: null };
   }
 
-  function showToast(msg, tone = 'ok') {
-    if (disposed || !document.body || !msg) return;
-    clearToast();
-    toastEl = document.createElement('div');
-    toastEl.className = 'op-selection-toast';
-    toastEl.setAttribute('data-op-ui', '1');
-    toastEl.setAttribute('data-tone', tone);
-    toastEl.setAttribute('data-visible', '1');
-    toastEl.setAttribute('role', 'status');
-    toastEl.setAttribute('aria-live', 'polite');
-    toastEl.textContent = msg;
-    document.body.appendChild(toastEl);
-    toastTimer = setTimeout(clearToast, 2200);
-  }
-
-  function hidePill() {
-    activeText = '';
-    activeSessionId = '';
-    activeAnchor = null;
-    activeRect = null;
-    if (repositionRaf) {
-      cancelAnimationFrame(repositionRaf);
-      repositionRaf = 0;
-    }
-    if (pillEl && pillEl.parentNode) pillEl.parentNode.removeChild(pillEl);
-    pillEl = null;
-  }
-
-  function getSelectionNodeElement(node) {
-    if (!node) return null;
-    return node.nodeType === 1 ? node : node.parentElement || null;
-  }
-
-  function isEligibleSelection(sel) {
-    if (!sel || sel.rangeCount === 0 || sel.isCollapsed) return null;
-    const text = sel.toString().trim();
-    const minLen = /[\u3400-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/.test(text) ? 1 : 2;
-    if (text.length < minLen || text.length > 3000) return null;
-
-    const range = sel.getRangeAt(0);
-    const anchorEl = getSelectionNodeElement(sel.anchorNode) || getSelectionNodeElement(range.startContainer);
-    const focusEl = getSelectionNodeElement(sel.focusNode) || getSelectionNodeElement(range.endContainer);
-    const commonEl = getSelectionNodeElement(range.commonAncestorContainer);
-    if (!anchorEl || !focusEl) return null;
-    if (anchorEl.closest(EXCLUDE_SELECTOR) || focusEl.closest(EXCLUDE_SELECTOR)) return null;
-
-    const convSelector =
-      '[data-chat-flow], [data-text-interaction-source], [data-conversation-region], [data-phase="active"], main, [role="main"]';
-    const convRoot = anchorEl.closest(convSelector) || focusEl.closest(convSelector) || commonEl?.closest(convSelector);
-    if (!convRoot) return null;
-    // Do not show on hero empty state headline
-    if (anchorEl.closest('[data-phase="hero"]') && !anchorEl.closest('[data-chat-flow]')) return null;
-
-    const conversation = anchorEl.closest('[data-conversation-session]');
-    const sessionId =
-      conversation && conversation.contains(focusEl) && !conversation.closest('.op-explain')
-        ? conversation.getAttribute('data-conversation-session') || ''
-        : '';
-    if (!sessionId) return null;
-
-    const rect = getSelectionBoundingRect(range);
-    if (!rect || (rect.width === 0 && rect.height === 0)) return null;
-
-    const vw = window.innerWidth || 1280;
-    const vh = window.innerHeight || 800;
-    if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
-
-    return { text, rect, sessionId, anchorEl };
-  }
-
-  function runAction() {
-    const s = getSettings();
-    const zh = isZhUi(s);
-    const text = activeText;
-    const anchorEl = activeAnchor;
-    const rect = activeRect;
-    if (!text) return;
-    hidePill();
-    if (typeof openExplain !== 'function') {
-      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+  function reconcile() {
+    if (disposed) return;
+    const settings = getSettings();
+    if (!settings?.enabled || !settings?.selectionAskEnabled) {
+      removeAction();
       return;
     }
-    try {
-      openExplain({ text, anchor: anchorEl, rect });
-    } catch {
-      showToast(zh ? '解释暂时打不开' : 'Explain is unavailable', 'err');
+    const surface = findSelectionSurface(document);
+    if (!surface) {
+      removeAction();
+      return;
     }
-  }
-
-  function positionPill(rect) {
-    if (!pillEl || !pillEl.isConnected) return;
-    const pillRect = pillEl.getBoundingClientRect();
-    const width = pillRect.width || 76;
-    const height = pillRect.height || 30;
-    const vw = window.innerWidth || 1280;
-    const vh = window.innerHeight || 800;
-    const gap = 8;
-
-    const composerCard = findMainComposerCard(document);
-    const composerTop = composerCard ? composerCard.getBoundingClientRect().top : vh;
-    const maxBottom = Math.min(vh - 12, composerTop - 8);
-
-    // DSH 原生的「引用文本」按钮就在选区上方；解释按钮直接贴到它右边
-    const nativeRect = getNativeTextSurfaceRect();
-    if (nativeRect) {
-      const left = nativeRect.right + gap;
-      const top = nativeRect.top + (nativeRect.height - height) / 2;
-      if (left + width <= vw - 12 && top >= 8 && top + height <= maxBottom) {
-        pillEl.setAttribute('data-placement', 'native');
-        pillEl.style.left = `${Math.round(left)}px`;
-        pillEl.style.top = `${Math.round(top)}px`;
-        return;
-      }
+    const picked = readExplainSelection(window.getSelection?.());
+    if (!picked) {
+      removeAction();
+      return;
     }
-
-    const centerX = rect.left + rect.width / 2;
-    const left = Math.max(12, Math.min(vw - width - 12, centerX - width / 2));
-    const aboveTop = rect.top - height - gap;
-    const belowTop = rect.bottom + gap;
-    const aboveFits = aboveTop >= 12;
-    const belowFits = belowTop + height <= maxBottom;
-    const top = aboveFits || !belowFits ? Math.max(12, Math.min(maxBottom - height, aboveTop)) : belowTop;
-    pillEl.setAttribute('data-placement', aboveFits || !belowFits ? 'above' : 'below');
-    pillEl.style.left = `${Math.round(left)}px`;
-    pillEl.style.top = `${Math.round(top)}px`;
-  }
-
-  function renderPill(text, rect, sessionId, anchorEl) {
-    const s = getSettings();
-    const zh = isZhUi(s);
-    activeText = text;
-    activeSessionId = sessionId;
-    activeAnchor = anchorEl || null;
-    activeRect = rect || null;
-
-    if (!pillEl || !pillEl.isConnected) {
-      pillEl = document.createElement('div');
-      pillEl.className = 'op-selection-pill';
-      pillEl.setAttribute('data-op-ui', '1');
-      pillEl.setAttribute('role', 'toolbar');
-      const keepSelection = (ev) => {
-        // 点按钮时别把选区弄丢，解释要用它
-        ev.preventDefault();
-        ev.stopPropagation();
-      };
-      pillEl.addEventListener('pointerdown', keepSelection);
-      pillEl.addEventListener('mousedown', keepSelection);
-      document.body.appendChild(pillEl);
-    }
-
-    pillEl.setAttribute('aria-label', zh ? '解释选中的文字' : 'Explain the selection');
-    pillEl.textContent = '';
-
-    const btn = document.createElement('button');
-    btn.type = 'button';
-    btn.className = 'op-selection-btn op-selection-btn-primary';
-    btn.setAttribute('data-op-action', 'explain');
-    btn.textContent = zh ? '解释' : 'Explain';
-    btn.addEventListener('click', (ev) => {
-      ev.preventDefault();
-      ev.stopPropagation();
-      runAction();
-    });
-    pillEl.appendChild(btn);
-
-    positionPill(rect);
-    // 原生「引用文本」可能晚一帧才出现，再贴一次
-    if (repositionRaf) cancelAnimationFrame(repositionRaf);
-    repositionRaf = requestAnimationFrame(() => {
-      repositionRaf = 0;
-      if (disposed || !pillEl || !pillEl.isConnected) return;
-      const sel = window.getSelection?.();
-      const eligible = isEligibleSelection(sel);
-      if (eligible) positionPill(eligible.rect);
+    current = picked;
+    buttonEl = ensureExplainAction({
+      surface,
+      zh: isZhUi(settings),
+      onCreate: (button) => {
+        button.addEventListener('pointerdown', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+        button.addEventListener('mousedown', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+        });
+        button.addEventListener('click', (ev) => {
+          ev.preventDefault();
+          ev.stopPropagation();
+          const { text, anchorEl } = current;
+          if (!text || typeof openExplain !== 'function') return;
+          openExplain({ text, anchor: anchorEl });
+        });
+      },
     });
   }
 
-  function evaluateNow() {
-    evalTimer = null;
-    if (disposed) return;
-    const s = getSettings();
-    if (!s.enabled || !s.selectionAskEnabled) {
-      hidePill();
-      return;
-    }
-    const sel = window.getSelection?.();
-    const eligible = isEligibleSelection(sel);
-    if (!eligible) {
-      hidePill();
-      return;
-    }
-    renderPill(eligible.text, eligible.rect, eligible.sessionId, eligible.anchorEl);
-  }
-
-  function scheduleEvaluate(delay = 45) {
-    if (evalTimer) clearTimeout(evalTimer);
-    evalTimer = setTimeout(evaluateNow, delay);
-  }
-
-  function isInsidePill(target) {
-    return target instanceof Element && Boolean(target.closest('.op-selection-pill'));
-  }
-
-  function onPointerDown(ev) {
-    if (isInsidePill(ev.target)) return;
-    pointerSelecting = true;
-    hidePill();
-  }
-
-  function onPointerUp(ev) {
-    pointerSelecting = false;
-    if (isInsidePill(ev.target)) return;
-    scheduleEvaluate(40);
-  }
-
-  function onKeyUp(ev) {
-    if (ev.key === 'Escape') {
-      hidePill();
-      return;
-    }
-    if (ev.shiftKey || ev.key === 'Shift' || (ev.key === 'a' && (ev.metaKey || ev.ctrlKey))) {
-      scheduleEvaluate(50);
-    }
-  }
-
-  function onKeyDown(ev) {
-    if (ev.key === 'Escape' && pillEl) {
-      hidePill();
-    }
-  }
-
-  function onSelectionChange() {
-    if (disposed) return;
-    const sel = window.getSelection?.();
-    if (!sel || sel.isCollapsed) {
-      if (pillEl) hidePill();
-      return;
-    }
-    // Wait until drag finishes, or evaluate via debounce for keyboard/double-click selections
-    if (!pointerSelecting) {
-      scheduleEvaluate(120);
-    }
-  }
-
-  function onScrollOrResize() {
-    if (!pillEl || !pillEl.isConnected) return;
-    if (repositionRaf) return;
-    repositionRaf = requestAnimationFrame(() => {
-      repositionRaf = 0;
-      if (disposed || !pillEl || !pillEl.isConnected) return;
-      const sel = window.getSelection?.();
-      const eligible = isEligibleSelection(sel);
-      if (!eligible) {
-        hidePill();
-        return;
-      }
-      positionPill(eligible.rect);
+  // 原生工具条的出现、移动、隐藏都在 DOM 变化里，跟着它同步即可
+  function schedule() {
+    if (pending || disposed) return;
+    pending = true;
+    Promise.resolve().then(() => {
+      pending = false;
+      if (!disposed) reconcile();
     });
   }
 
   function start() {
-    document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('pointerup', onPointerUp, true);
-    document.addEventListener('mouseup', onPointerUp, true);
-    document.addEventListener('keyup', onKeyUp, true);
-    document.addEventListener('keydown', onKeyDown, true);
-    document.addEventListener('selectionchange', onSelectionChange);
-    window.addEventListener('scroll', onScrollOrResize, true);
-    window.addEventListener('resize', onScrollOrResize);
+    if (disposed || observer) return;
+    if (typeof MutationObserver === 'function' && document.body) {
+      observer = new MutationObserver(schedule);
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['style', 'class', 'aria-hidden', 'hidden'],
+      });
+    }
+    document.addEventListener('selectionchange', schedule);
+    window.addEventListener('scroll', schedule, true);
+    window.addEventListener('resize', schedule);
+    schedule();
   }
 
   function refresh() {
-    const s = getSettings();
-    if (!s.enabled || !s.selectionAskEnabled) {
-      hidePill();
-    } else if (pillEl && activeText) {
-      // Re-render pill immediately on language change
-      evaluateNow();
-    }
+    schedule();
   }
 
   function dispose() {
     disposed = true;
-    pointerSelecting = false;
-    if (evalTimer) {
-      clearTimeout(evalTimer);
-      evalTimer = null;
-    }
-    document.removeEventListener('pointerdown', onPointerDown, true);
-    document.removeEventListener('pointerup', onPointerUp, true);
-    document.removeEventListener('mouseup', onPointerUp, true);
-    document.removeEventListener('keyup', onKeyUp, true);
-    document.removeEventListener('keydown', onKeyDown, true);
-    document.removeEventListener('selectionchange', onSelectionChange);
-    window.removeEventListener('scroll', onScrollOrResize, true);
-    window.removeEventListener('resize', onScrollOrResize);
-    hidePill();
-    clearToast();
+    if (observer) observer.disconnect();
+    observer = null;
+    document.removeEventListener('selectionchange', schedule);
+    window.removeEventListener('scroll', schedule, true);
+    window.removeEventListener('resize', schedule);
+    removeAction();
   }
 
   return { start, refresh, dispose };

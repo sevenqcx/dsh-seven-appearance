@@ -672,8 +672,15 @@ export function createHostHandlers(baseDir) {
           const text = String(body?.text || '').trim();
           if (!text) return Response.json({ ok: false, error: 'empty selection' }, { status: 400 });
 
-          const models = await getMagpieTextModels();
-          const model = pickFastDefaultModel(models, (process.env.OP_EXPLAIN_MODEL || '').trim());
+          // 解释跟下一步提示词推荐共用一档模型；认不出来就回落到最快的那一档
+          let models = await getMagpieTextModels();
+          const requested = typeof body?.model === 'string' ? body.model.trim() : '';
+          let model = '';
+          if (requested && requested !== 'local') {
+            if (!models.some((m) => m.id === requested)) models = await getMagpieTextModels({ forceRefresh: true });
+            if (models.some((m) => m.id === requested)) model = requested;
+          }
+          if (!model) model = pickFastDefaultModel(models, (process.env.OP_EXPLAIN_MODEL || '').trim());
           if (!model) return Response.json({ ok: false, error: 'No available text model' }, { status: 400 });
 
           const messages = buildExplainMessages({

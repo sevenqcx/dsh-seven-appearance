@@ -29,11 +29,14 @@ import { buildStylesheet } from '../src/theme-css.js';
 import { isZhUi, resolveUiLang } from '../src/i18n.js';
 import { formatSelectionQuote } from '../src/selection-ask-controller.js';
 
-test('selection pill offers one Explain action beside the native quote surface', async () => {
-  const { createSelectionAskController } = await import('../src/selection-ask-controller.js');
+test('explain rides inside the native selection bar beside Quote and opens one popover', async () => {
+  const {
+    createSelectionAskController,
+    findSelectionSurface,
+    readExplainSelection,
+    ensureExplainAction,
+  } = await import('../src/selection-ask-controller.js');
   const { createContextMenuController } = await import('../src/context-menu-controller.js');
-
-  assert.equal('contextMenuEnabled' in DEFAULT_SETTINGS, false);
 
   class FakeElement {
     constructor(tag = 'div', attrs = {}, parent = null) {
@@ -46,24 +49,21 @@ test('selection pill offers one Explain action beside the native quote surface',
       this.listeners = new Map();
       this.parentNode = parent;
       this.textContent = '';
-      this.isConnected = false;
       this.href = attrs.href || '';
       this.hidden = false;
-      this.rect = { left: 100, top: 100, right: 240, bottom: 134, width: 140, height: 34 };
+      this.rect = { left: 180, top: 200, right: 260, bottom: 232, width: 80, height: 32 };
     }
     setAttribute(k, v) { this.attrs[k] = String(v); }
     getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
     removeAttribute(k) { delete this.attrs[k]; }
     appendChild(child) {
       child.parentNode = this;
-      child.isConnected = this.isConnected;
       this.children.push(child);
       return child;
     }
     removeChild(child) {
       this.children = this.children.filter((c) => c !== child);
       child.parentNode = null;
-      child.isConnected = false;
     }
     remove() { this.parentNode?.removeChild(this); }
     addEventListener(type, fn) {
@@ -87,19 +87,26 @@ test('selection pill offers one Explain action beside the native quote surface',
       while (cur) {
         for (const p of parts) {
           if (p === '[data-conversation-session]' && cur.getAttribute('data-conversation-session')) return cur;
-          if (p === '[data-chat-flow]' && cur.getAttribute('data-chat-flow') != null) return cur;
-          if (p === 'a[href]' && cur.tagName === 'A' && cur.href) return cur;
-          if (p === '.op-selection-pill' && cur.className.includes('op-selection-pill')) return cur;
           if (p === '.op-explain' && cur.className.includes('op-explain')) return cur;
+          if (p === '[data-op-ui="1"]' && cur.getAttribute('data-op-ui') === '1') return cur;
         }
         cur = cur.parentNode;
       }
       return null;
     }
     querySelector(sel) {
-      if (sel === 'button') return this.children.find((c) => c.tagName === 'BUTTON') || null;
-      return null;
+      const want = sel.replace(/^\./, '');
+      const walk = (el) => {
+        for (const c of el.children) {
+          if (c.className.split(' ').includes(want)) return c;
+          const hit = walk(c);
+          if (hit) return hit;
+        }
+        return null;
+      };
+      return walk(this);
     }
+    querySelectorAll() { return []; }
     getBoundingClientRect() { return this.rect; }
     focus() {}
   }
@@ -107,131 +114,101 @@ test('selection pill offers one Explain action beside the native quote surface',
   const prevDoc = globalThis.document;
   const prevWin = globalThis.window;
   const prevEl = globalThis.Element;
-  const prevRaf = globalThis.requestAnimationFrame;
-  const prevCaf = globalThis.cancelAnimationFrame;
 
-  const docListeners = new Map();
-  const winListeners = new Map();
   const body = new FakeElement('body');
-  body.isConnected = true;
-
-  const conversation = new FakeElement('div', { 'data-conversation-session': 'sess-1', 'data-chat-flow': '1' }, body);
+  const conversation = new FakeElement('div', { 'data-conversation-session': 'sess-1' }, body);
   const textNode = new FakeElement('p', {}, conversation);
-  const linkNode = new FakeElement('a', { href: 'https://example.com' }, conversation);
-  // DSH 原生的「引用文本」按钮
-  const nativeSurface = new FakeElement('div', { 'data-text-interaction-surface': '1' }, conversation);
-  nativeSurface.rect = { left: 180, top: 200, right: 260, bottom: 232, width: 80, height: 32 };
+  // DSH 原生工具条：里面已经有一个「引用文本」
+  const surface = new FakeElement('div', { 'data-text-interaction-surface': '' }, conversation);
+  conversation.appendChild(surface);
+  const quoteBtn = new FakeElement('button');
+  quoteBtn.textContent = '引用文本';
+  surface.appendChild(quoteBtn);
 
-  let currentSelection = null;
+  let selection = null;
   globalThis.Element = FakeElement;
-  globalThis.requestAnimationFrame = () => 1;
-  globalThis.cancelAnimationFrame = () => {};
   globalThis.document = {
     body,
-    activeElement: null,
     createElement: (tag) => new FakeElement(tag),
-    querySelector: () => null,
-    querySelectorAll: (sel) => (sel === '[data-text-interaction-surface]' ? [nativeSurface] : []),
-    addEventListener: (type, fn) => {
-      if (!docListeners.has(type)) docListeners.set(type, []);
-      docListeners.get(type).push(fn);
-    },
-    removeEventListener: (type, fn) => {
-      docListeners.set(type, (docListeners.get(type) || []).filter((f) => f !== fn));
-    },
+    querySelectorAll: (sel) => (sel === '[data-text-interaction-surface]' ? [surface] : []),
+    addEventListener() {},
+    removeEventListener() {},
   };
   globalThis.window = {
-    innerWidth: 1280,
-    innerHeight: 800,
-    getSelection: () => currentSelection,
-    addEventListener: (type, fn) => {
-      if (!winListeners.has(type)) winListeners.set(type, []);
-      winListeners.get(type).push(fn);
-    },
-    removeEventListener: (type, fn) => {
-      winListeners.set(type, (winListeners.get(type) || []).filter((f) => f !== fn));
-    },
+    getSelection: () => selection,
+    addEventListener() {},
+    removeEventListener() {},
   };
+
+  const makeSelection = (text) => ({
+    rangeCount: 1,
+    isCollapsed: false,
+    anchorNode: textNode,
+    focusNode: textNode,
+    toString: () => text,
+    getRangeAt: () => ({ startContainer: textNode, endContainer: textNode }),
+  });
 
   let settings = sanitizeSettings({ enabled: true, selectionAskEnabled: true, uiLanguage: 'zh' });
   const explainCalls = [];
   const openExplain = (args) => { explainCalls.push(args); };
-  const pillCtrl = createSelectionAskController({ getSettings: () => settings, openExplain });
+  const controller = createSelectionAskController({ getSettings: () => settings, openExplain });
   const menuCtrl = createContextMenuController({ getSettings: () => settings, openExplain });
 
   try {
-    pillCtrl.start();
+    assert.equal(findSelectionSurface(document), surface);
+    controller.start();
     menuCtrl.start();
 
-    currentSelection = {
-      rangeCount: 1,
-      isCollapsed: false,
-      anchorNode: textNode,
-      focusNode: textNode,
-      toString: () => '核心结论',
-      getRangeAt: () => ({
-        startContainer: textNode,
-        endContainer: textNode,
-        commonAncestorContainer: textNode,
-        getClientRects: () => [{ left: 100, top: 200, right: 200, bottom: 220, width: 100, height: 20 }],
-      }),
-      removeAllRanges: () => {},
-    };
+    // 选中文字后，按钮追加进同一条原生工具条
+    selection = makeSelection('核心结论');
+    controller.refresh();
+    await Promise.resolve();
+    const action = surface.querySelector('.op-selection-explain');
+    assert.ok(action, 'explain action should be appended to the native bar');
+    assert.equal(action.textContent, '解释');
+    assert.equal(surface.children.length, 2, 'quote and explain share one bar');
 
-    for (const fn of docListeners.get('pointerup') || []) fn({ target: textNode });
-    await new Promise((r) => setTimeout(r, 60));
-    const pill = body.children.find((c) => c.className === 'op-selection-pill');
-    assert.ok(pill, 'selection pill should appear');
-    assert.deepEqual(pill.children.map((b) => b.textContent), ['解释']);
-    // 贴在原生「引用文本」右侧
-    assert.equal(pill.getAttribute('data-placement'), 'native');
-    assert.equal(pill.style.left, '268px');
+    // 重复同步不重复插按钮
+    controller.refresh();
+    await Promise.resolve();
+    assert.equal(surface.children.length, 2);
 
-    pill.children[0].dispatch('click', { preventDefault() {}, stopPropagation() {} });
+    action.dispatch('click', { preventDefault() {}, stopPropagation() {} });
     assert.equal(explainCalls.length, 1);
     assert.equal(explainCalls[0].text, '核心结论');
     assert.equal(explainCalls[0].anchor, textNode);
-    // 解释不碰会话：没有 session id、没有分支
     assert.equal('sessionId' in explainCalls[0], false);
 
-    for (const fn of docListeners.get('contextmenu') || []) {
-      fn({ target: textNode, clientX: 120, clientY: 160, shiftKey: false, preventDefault() {}, stopPropagation() {} });
-    }
-    let menu = body.children.find((c) => c.className === 'op-context-menu');
-    assert.ok(menu);
-    assert.deepEqual(
-      menu.children.filter((c) => c.tagName === 'BUTTON').map((b) => b.textContent),
-      ['复制选中内容', '解释这段'],
-    );
-    menu.children.find((b) => b.textContent === '解释这段').dispatch('click', { preventDefault() {}, stopPropagation() {} });
-    assert.equal(explainCalls.length, 2);
-    assert.equal(explainCalls[1].text, '核心结论');
+    // 选中消失：按钮跟着原生条一起撤掉
+    selection = null;
+    controller.refresh();
+    await Promise.resolve();
+    assert.equal(surface.querySelector('.op-selection-explain'), null);
 
-    // 关掉开关：浮条消失，右键只留常规动作
+    // 关掉开关：不再往原生条里加东西
     settings = sanitizeSettings({ enabled: true, selectionAskEnabled: false, uiLanguage: 'zh' });
-    pillCtrl.refresh();
-    menuCtrl.refresh();
-    for (const fn of docListeners.get('pointerup') || []) fn({ target: textNode });
-    await new Promise((r) => setTimeout(r, 60));
-    assert.equal(body.children.find((c) => c.className === 'op-selection-pill'), undefined);
+    selection = makeSelection('核心结论');
+    controller.refresh();
+    await Promise.resolve();
+    assert.equal(surface.querySelector('.op-selection-explain'), null);
 
-    for (const fn of docListeners.get('contextmenu') || []) {
-      fn({ target: linkNode, clientX: 120, clientY: 160, shiftKey: false, preventDefault() {}, stopPropagation() {} });
-    }
-    menu = body.children.find((c) => c.className === 'op-context-menu');
-    assert.ok(menu);
-    assert.deepEqual(
-      menu.children.filter((c) => c.tagName === 'BUTTON').map((b) => b.textContent),
-      ['复制选中内容', '复制链接'],
-    );
+    // 右键菜单仍保留「解释这段」这一条独立入口
+    settings = sanitizeSettings({ enabled: true, selectionAskEnabled: true, uiLanguage: 'zh' });
+    selection = makeSelection('核心结论');
+    assert.match(readExplainSelection(selection).text, /核心结论/);
+    assert.equal(readExplainSelection({ rangeCount: 1, isCollapsed: true, toString: () => '' }), null);
+
+    // ensureExplainAction 换语言只改文字，不重复插
+    const en = ensureExplainAction({ surface, doc: globalThis.document, zh: false });
+    assert.equal(en.textContent, 'Explain');
+    assert.equal(surface.children.filter((c) => c.className === 'op-selection-explain').length, 1);
   } finally {
-    pillCtrl.dispose();
+    controller.dispose();
     menuCtrl.dispose();
     globalThis.document = prevDoc;
     globalThis.window = prevWin;
     globalThis.Element = prevEl;
-    globalThis.requestAnimationFrame = prevRaf;
-    globalThis.cancelAnimationFrame = prevCaf;
   }
 });
 
@@ -405,7 +382,7 @@ test('explain endpoint relays streamed deltas from the fastest model', async () 
       }
       const body = JSON.parse(options.body);
       assert.equal(body.stream, true);
-      assert.equal(body.model, 'local/qwen-flash');
+      assert.equal(body.model, seen.length > 2 ? 'local/big' : 'local/qwen-flash');
       assert.match(body.messages[0].content, /解释|explain/i);
       assert.match(body.messages[1].content, /核心结论/);
       const frames = [
@@ -429,6 +406,18 @@ test('explain endpoint relays streamed deltas from the fastest model', async () 
     assert.match(res.headers.get('content-type'), /text\/plain/);
     assert.equal(await res.text(), '这段是在说：第三方做的服务。');
     assert.ok(seen.some((u) => u.endsWith('/chat/completions')));
+
+    // 推荐里选的那一档会带过来，认不出就回落到最快一档
+    await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '一段文字', model: 'local/big' }),
+    }));
+    await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ text: '一段文字', model: 'nope/gone' }),
+    }));
 
     const empty = await handler.fetch(new Request('http://localhost/api/dsh-obsidian-prism/explain', {
       method: 'POST',
@@ -1656,7 +1645,7 @@ test('v0.3.0 selection quote formatter quotes multi-line text into the composer'
 
 test('v0.3.0 stylesheet includes selection pill, choreography, prism rim, status vial, searchable outline, and lang toggle', () => {
   const css = buildStylesheet();
-  assert.match(css, /\.op-selection-pill/);
+  assert.match(css, /\.op-selection-explain/);
   assert.match(css, /\.op-selection-toast/);
   assert.match(css, /data-op-choreography="1"/);
   assert.match(css, /@keyframes op-block-arrive/);
@@ -1665,7 +1654,7 @@ test('v0.3.0 stylesheet includes selection pill, choreography, prism rim, status
   assert.match(css, /\.op-status-vial/);
   assert.match(css, /\.op-status-vial\[data-vial-docked="1"\]/);
   assert.match(css, /\.op-vial-close/);
-  assert.match(css, /:not\(\.op-selection-pill\):not\(\.op-selection-toast\)/);
+  assert.match(css, /:not\(\.op-selection-explain\):not\(\.op-selection-toast\)/);
   assert.match(css, /html\[data-op-enabled="1"\]\[data-op-choreography="1"\]\[data-op-complete-pulse="1"\] \[data-composer-card\]/);
   assert.match(css, /\.op-outline-search/);
   assert.match(css, /\.op-outline-tabs/);
