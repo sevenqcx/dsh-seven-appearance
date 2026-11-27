@@ -1,6 +1,6 @@
-# dsh-obsidian-prism (黑曜棱镜 · DeepSeek Harness 移植版)
+# Seven 外观 (`dsh-obsidian-prism`)
 
-将 [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)（GPL-3.0-only）中最精华的视觉主题、棱镜光效、像素伙伴舞台、本地动静态壁纸与会话工作台增强，原生移植为 DeepSeek Harness 插件。
+基于 [RMvdesi/obsidian-prism](https://github.com/RMvdesi/obsidian-prism)（GPL-3.0-only）深度移植与定制的 DeepSeek Harness 外观与效率增强插件，涵盖主题配色、棱镜光效、像素伙伴舞台、本地动静态壁纸、统一模型与推理选择器、下一步提示词推荐、划词与右键侧边追问及会话工作台增强。
 
 ## 功能
 
@@ -52,7 +52,7 @@
    - 长代码块自动折叠 + 吸顶语言/行数操作栏（可自定义行数阈值）
    - 右侧悬浮会话大纲导航（超过 2 轮提问自动出现，悬停预览、点击平滑跳转）
 6. **双入口实时外观工坊**
-   - 原生注册到 DSH **设置 → 黑曜棱镜** 独立分区
+   - 原生注册到 DSH **设置 → Seven 外观** 独立分区
    - 右下角轻巧快捷入口按钮 + 全局快捷键 `Alt+Shift+P` 随时唤出侧滑抽屉，设置持久化至 `~/.dsh/obsidian-prism/settings.json`
 
 ## 构建与测试

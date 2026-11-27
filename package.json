@@ -3,7 +3,7 @@
   "version": "0.4.0",
   "private": true,
   "type": "module",
-  "description": "Obsidian Prism (黑曜棱镜) visual & productivity suite for DeepSeek Harness: 4 curated themes, dynamic composer prism rim & status vial, WebGL2 ASCII matrix ripple, Smoked Obsidian facets, selection quick-ask bar, stream choreography, searchable/collapsible outline, pixel mascots, local wallpapers, scene presets & live ZH/EN Studio.",
+  "description": "Seven 外观（Seven Appearance）DeepSeek Harness 外观与效率套件（基于 GPL-3.0 Obsidian Prism 移植）：四套深浅主题、输入框棱镜流光、背景微光涟漪、统一模型与推理选择器、下一步提示词推荐、划词与右键侧边追问、像素伙伴、本地壁纸与中英双语外观工坊。",
   "license": "GPL-3.0-only",
   "keywords": [
     "deepseek",

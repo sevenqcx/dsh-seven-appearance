@@ -796,13 +796,34 @@ test('prompt suggestion persists across session switch and composer remount unti
     assert.equal(fetchCount, 1);
     assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent, '持久建议内容');
 
-    // User starts typing: hides immediately and stays hidden even if text is later cleared on same turn
+    // User starts typing: hides immediately; deleting all text restores cached suggestion with 0 extra fetches
     sessA.editor.textContent = '我自己写';
     for (const fn of docListeners.get('input') || []) {
       fn({ target: sessA.editor });
     }
     assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
     sessA.editor.textContent = '';
+    for (const fn of docListeners.get('input') || []) {
+      fn({ target: sessA.editor });
+    }
+    assert.equal(fetchCount, 1);
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent, '持久建议内容');
+
+    // IME composition hides while composing and restores when cancelled back to empty
+    for (const fn of docListeners.get('compositionstart') || []) {
+      fn({ target: sessA.editor });
+    }
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+    for (const fn of docListeners.get('compositionend') || []) {
+      fn({ target: sessA.editor });
+    }
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent, '持久建议内容');
+
+    // Explicit Escape inside composer dismisses for this turn
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Escape', target: sessA.editor });
+    }
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
     ctrl.sync();
     assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
   } finally {
@@ -981,6 +1002,28 @@ test('prompt suggestion shows 0ms local fallback with fast-model upgrade, suppor
     await new Promise((r) => setTimeout(r, 15));
     const upgraded = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
     assert.equal(upgraded, '快模型升级后的精准建议');
+
+    // Tab works even when user has NOT clicked the composer (e.g., focus on chat/body),
+    // while yielding when focus is inside a modal/drawer/other input.
+    let focused = false;
+    editor.focus = () => { focused = true; };
+    const otherInput = new El('input', {}, root);
+    otherInput.closest = (sel) => (sel.includes('input') ? otherInput : null);
+    let prevented = false;
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: false, target: otherInput, preventDefault() { prevented = true; }, stopPropagation() {} });
+    }
+    assert.equal(prevented, false);
+    assert.equal(editor.textContent, '');
+
+    // Pressing Tab from general page/conversation area focuses composer and accepts suggestion
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: false, target: conv, preventDefault() { prevented = true; }, stopPropagation() {} });
+    }
+    assert.equal(prevented, true);
+    assert.equal(focused, true);
+    assert.equal(editor.textContent, '快模型升级后的精准建议');
+    assert.equal(host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
   } finally {
     hybridCtrl.dispose();
     globalThis.document = prevDoc;

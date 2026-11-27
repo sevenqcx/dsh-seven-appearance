@@ -205,7 +205,7 @@ export function parseSettingsBackup(rawText, currentSettings = DEFAULT_SETTINGS)
   const knownKeys = Object.keys(DEFAULT_SETTINGS);
   const matched = knownKeys.filter((k) => Object.prototype.hasOwnProperty.call(candidate, k));
   if (matched.length === 0) {
-    return { ok: false, error: 'No recognized Obsidian Prism settings keys found' };
+    return { ok: false, error: 'No recognized Seven Appearance settings keys found' };
   }
 
   const base = sanitizeSettings(currentSettings);

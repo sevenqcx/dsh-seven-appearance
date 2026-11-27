@@ -9504,7 +9504,7 @@ function parseSettingsBackup(rawText, currentSettings = DEFAULT_SETTINGS) {
   const knownKeys = Object.keys(DEFAULT_SETTINGS);
   const matched = knownKeys.filter((k) => Object.prototype.hasOwnProperty.call(candidate, k));
   if (matched.length === 0) {
-    return { ok: false, error: 'No recognized Obsidian Prism settings keys found' };
+    return { ok: false, error: 'No recognized Seven Appearance settings keys found' };
   }
 
   const base = sanitizeSettings(currentSettings);
@@ -16592,12 +16592,14 @@ function createPromptSuggestController({ getSettings }) {
   let syncTimer = null;
   let streamPollTimer = null;
   let isStreaming = false;
+  let isComposing = false;
   let prefetched = null;
   let prefetchCount = 0;
   let lastPrefetchAt = 0;
   let onKey = null;
   let onInput = null;
   let onComposition = null;
+  let onCompositionEnd = null;
   let onVisibility = null;
   let onWindowFocus = null;
   let mo = null;
@@ -16668,7 +16670,7 @@ function createPromptSuggestController({ getSettings }) {
     const input = findMainComposerInput(document);
     if (!input) return false;
     const text = suggestion;
-    hide({ dismiss: true });
+    hide();
     input.focus?.();
     return insertTextIntoComposer(input, text);
   }
@@ -16676,7 +16678,7 @@ function createPromptSuggestController({ getSettings }) {
   function renderGhost(text, sigKey = currentSig) {
     const input = findMainComposerInput(document);
     const host = input?.parentElement;
-    if (!input || !host || !composerIsEmpty(input)) return false;
+    if (!input || !host || isComposing || !composerIsEmpty(input)) return false;
     suggestion = text;
     if (sigKey) currentSig = sigKey;
 
@@ -16962,7 +16964,7 @@ function createPromptSuggestController({ getSettings }) {
       hide();
       return;
     }
-    if (isStreaming || isDocumentStreaming()) return;
+    if (isStreaming || isComposing || isDocumentStreaming()) return;
 
     const mainConv = resolveMainConversation(document);
     const input = findMainComposerInput(document);
@@ -17139,11 +17141,48 @@ function createPromptSuggestController({ getSettings }) {
     }, FINISH_SETTLE_MS);
   }
 
+  const TAB_YIELD_TARGET_SEL = [
+    'input',
+    'textarea',
+    'select',
+    '[contenteditable="true"]',
+    '.xterm',
+    '[role="dialog"]',
+    '[role="menu"]',
+    '[role="listbox"]',
+    '[role="combobox"]',
+    '[aria-modal="true"]',
+    '.op-drawer',
+    '[data-sidebar-right-session]',
+    '.op-side-question',
+  ].join(', ');
+
+  const TAB_YIELD_OVERLAY_SEL =
+    '[role="dialog"]:not([hidden]), [aria-modal="true"]:not([hidden]), [role="menu"]:not([hidden]), [role="listbox"]:not([hidden]), .op-drawer';
+
   function isTargetInComposer(input, target) {
     if (!input || !target) return false;
     if (target === input || input.contains?.(target)) return true;
     const card = input.closest?.('[data-composer-card]');
     return Boolean(card && card.contains?.(target));
+  }
+
+  function canHandleTabShortcut(input, target) {
+    if (!input || !composerIsEmpty(input)) return false;
+    if (isTargetInComposer(input, target)) return true;
+    if (target && typeof target.closest === 'function' && target.closest(TAB_YIELD_TARGET_SEL)) {
+      return false;
+    }
+    const active = document.activeElement;
+    if (active && active !== input && !isTargetInComposer(input, active)) {
+      if (typeof active.closest === 'function' && active.closest(TAB_YIELD_TARGET_SEL)) {
+        return false;
+      }
+    }
+    if (document.querySelector?.(TAB_YIELD_OVERLAY_SEL)) {
+      return false;
+    }
+    return true;
   }
 
   function resolveActiveSigKey() {
@@ -17166,7 +17205,7 @@ function createPromptSuggestController({ getSettings }) {
   function attach() {
     if (onKey) return;
     onKey = (ev) => {
-      if (!suggestion) return;
+      if (!suggestion || ev.defaultPrevented) return;
       const input = findMainComposerInput(document);
       if (ev.key === 'Escape') {
         if (input && isTargetInComposer(input, ev.target)) {
@@ -17175,8 +17214,7 @@ function createPromptSuggestController({ getSettings }) {
         return;
       }
       if (ev.key !== 'Tab' || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-      if (!input || !isTargetInComposer(input, ev.target)) return;
-      if (!composerIsEmpty(input)) return;
+      if (!canHandleTabShortcut(input, ev.target)) return;
       ev.preventDefault();
       ev.stopPropagation();
       if (ev.shiftKey) cycle();
@@ -17184,14 +17222,26 @@ function createPromptSuggestController({ getSettings }) {
     };
     onInput = (ev) => {
       const input = findMainComposerInput(document);
-      if (input && (input === ev.target || input.contains?.(ev.target)) && !composerIsEmpty(input)) {
-        dismissActiveTurn();
+      if (!input || (input !== ev.target && !input.contains?.(ev.target))) return;
+      if (!composerIsEmpty(input)) {
+        hide();
+      } else if (!isComposing) {
+        sync();
       }
     };
     onComposition = (ev) => {
       const input = findMainComposerInput(document);
       if (input && (input === ev.target || input.contains?.(ev.target))) {
-        dismissActiveTurn();
+        isComposing = true;
+        hide();
+      }
+    };
+    onCompositionEnd = (ev) => {
+      const input = findMainComposerInput(document);
+      if (!isComposing && (!input || (input !== ev.target && !input.contains?.(ev.target)))) return;
+      isComposing = false;
+      if (input && composerIsEmpty(input)) {
+        sync();
       }
     };
     onVisibility = () => {
@@ -17203,6 +17253,7 @@ function createPromptSuggestController({ getSettings }) {
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('input', onInput, true);
     document.addEventListener('compositionstart', onComposition, true);
+    document.addEventListener('compositionend', onCompositionEnd, true);
     document.addEventListener('visibilitychange', onVisibility);
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.addEventListener('focus', onWindowFocus);
@@ -17235,6 +17286,7 @@ function createPromptSuggestController({ getSettings }) {
     clearSyncTimer();
     clearStreamPoll();
     isStreaming = false;
+    isComposing = false;
     resetPrefetch();
     reqSeq += 1;
     if (mo) {
@@ -17244,6 +17296,7 @@ function createPromptSuggestController({ getSettings }) {
     if (onKey) document.removeEventListener('keydown', onKey, true);
     if (onInput) document.removeEventListener('input', onInput, true);
     if (onComposition) document.removeEventListener('compositionstart', onComposition, true);
+    if (onCompositionEnd) document.removeEventListener('compositionend', onCompositionEnd, true);
     if (onVisibility) document.removeEventListener('visibilitychange', onVisibility);
     if (onWindowFocus && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
       window.removeEventListener('focus', onWindowFocus);
@@ -17251,6 +17304,7 @@ function createPromptSuggestController({ getSettings }) {
     onKey = null;
     onInput = null;
     onComposition = null;
+    onCompositionEnd = null;
     onVisibility = null;
     onWindowFocus = null;
     hide();
@@ -21462,15 +21516,15 @@ const UI_LANG_OPTIONS = [
 
 const COPY = {
   zh: {
-    brand: '黑曜棱镜',
-    brandSub: 'Obsidian Prism',
-    fab: '棱镜外观',
+    brand: 'Seven 外观',
+    brandSub: 'Seven Appearance',
+    fab: 'Seven 外观',
     close: '关闭',
     reset: '恢复默认',
     langSwitch: 'EN',
     secMaster: '主题与色彩',
     uiLanguage: '界面语言',
-    enabled: '启用黑曜棱镜主题套件',
+    enabled: '启用 Seven 外观',
     enabledSub: '关闭后立即恢复 DeepSeek Harness 原生外观',
     themeMode: '明暗模式',
     modeAuto: '跟随 DSH',
@@ -21516,7 +21570,7 @@ const COPY = {
     importJson: '导入配置 JSON',
     exportedMsg: '已导出 obsidian-prism-config.json',
     importedMsg: '已导入并应用配置',
-    importErrMsg: '导入失败：文件不是有效的黑曜棱镜 JSON 配置',
+    importErrMsg: '导入失败：文件不是有效的 Seven 外观 JSON 配置',
     secMascot: '像素伙伴舞台',
     mascotHint: '驻留在输入框上沿，可拖拽、互动，回复时会进入工作动画（含 Deepy 像素鲸鱼）',
     secWallpaper: '日常效率工作台与本地壁纸',
@@ -21546,15 +21600,15 @@ const COPY = {
     quickTriggerSub: '快捷键 Alt+Shift+P 随时开关外观抽屉',
   },
   en: {
-    brand: 'Obsidian Prism',
+    brand: 'Seven Appearance',
     brandSub: 'Appearance Studio',
-    fab: 'Prism',
+    fab: 'Seven',
     close: 'Close',
     reset: 'Reset Defaults',
     langSwitch: '中',
     secMaster: 'Theme & Palette',
     uiLanguage: 'Studio Language',
-    enabled: 'Enable Obsidian Prism',
+    enabled: 'Enable Seven Appearance',
     enabledSub: 'Disable anytime to restore native DeepSeek Harness appearance',
     themeMode: 'Color Mode',
     modeAuto: 'Follow DSH',
@@ -21600,7 +21654,7 @@ const COPY = {
     importJson: 'Import JSON',
     exportedMsg: 'Exported obsidian-prism-config.json',
     importedMsg: 'Configuration imported and applied',
-    importErrMsg: 'Import failed: invalid Obsidian Prism JSON config',
+    importErrMsg: 'Import failed: invalid Seven Appearance JSON config',
     secMascot: 'Pixel Mascot Stage',
     mascotHint: 'Interactive pixel companions perched above the composer (including Deepy whale)',
     secWallpaper: 'Productivity Workbench & Wallpaper',
@@ -22596,7 +22650,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
             name: 'settings.section',
             id: 'obsidian-prism',
             order: 26,
-            label: () => (isZhUi(store.get()) ? '黑曜棱镜' : 'Obsidian Prism'),
+            label: () => (isZhUi(store.get()) ? 'Seven 外观' : 'Seven Appearance'),
           },
           StudioPanel,
         ),
@@ -22648,7 +22702,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
                       name: 'conversation.input.model',
                       id: 'obsidian-prism:model-picker',
                       priority: -1,
-                      label: () => (isZhUi(store.get()) ? '黑曜棱镜模型与推理选择器' : 'Obsidian Prism Model Picker'),
+                      label: () => (isZhUi(store.get()) ? 'Seven 外观模型与推理选择器' : 'Seven Appearance Model Picker'),
                       inject: (sessionId) => {
                         const directory = scope.modelDirectories.directoryFor(sessionId);
                         const available = scope.sessions.subagentAddress(sessionId) === undefined;

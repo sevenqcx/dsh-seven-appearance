@@ -262,7 +262,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
             name: 'settings.section',
             id: 'obsidian-prism',
             order: 26,
-            label: () => (isZhUi(store.get()) ? '黑曜棱镜' : 'Obsidian Prism'),
+            label: () => (isZhUi(store.get()) ? 'Seven 外观' : 'Seven Appearance'),
           },
           StudioPanel,
         ),
@@ -314,7 +314,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
                       name: 'conversation.input.model',
                       id: 'obsidian-prism:model-picker',
                       priority: -1,
-                      label: () => (isZhUi(store.get()) ? '黑曜棱镜模型与推理选择器' : 'Obsidian Prism Model Picker'),
+                      label: () => (isZhUi(store.get()) ? 'Seven 外观模型与推理选择器' : 'Seven Appearance Model Picker'),
                       inject: (sessionId) => {
                         const directory = scope.modelDirectories.directoryFor(sessionId);
                         const available = scope.sessions.subagentAddress(sessionId) === undefined;

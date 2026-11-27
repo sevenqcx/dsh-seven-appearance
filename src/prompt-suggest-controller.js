@@ -303,12 +303,14 @@ export function createPromptSuggestController({ getSettings }) {
   let syncTimer = null;
   let streamPollTimer = null;
   let isStreaming = false;
+  let isComposing = false;
   let prefetched = null;
   let prefetchCount = 0;
   let lastPrefetchAt = 0;
   let onKey = null;
   let onInput = null;
   let onComposition = null;
+  let onCompositionEnd = null;
   let onVisibility = null;
   let onWindowFocus = null;
   let mo = null;
@@ -379,7 +381,7 @@ export function createPromptSuggestController({ getSettings }) {
     const input = findMainComposerInput(document);
     if (!input) return false;
     const text = suggestion;
-    hide({ dismiss: true });
+    hide();
     input.focus?.();
     return insertTextIntoComposer(input, text);
   }
@@ -387,7 +389,7 @@ export function createPromptSuggestController({ getSettings }) {
   function renderGhost(text, sigKey = currentSig) {
     const input = findMainComposerInput(document);
     const host = input?.parentElement;
-    if (!input || !host || !composerIsEmpty(input)) return false;
+    if (!input || !host || isComposing || !composerIsEmpty(input)) return false;
     suggestion = text;
     if (sigKey) currentSig = sigKey;
 
@@ -673,7 +675,7 @@ export function createPromptSuggestController({ getSettings }) {
       hide();
       return;
     }
-    if (isStreaming || isDocumentStreaming()) return;
+    if (isStreaming || isComposing || isDocumentStreaming()) return;
 
     const mainConv = resolveMainConversation(document);
     const input = findMainComposerInput(document);
@@ -850,11 +852,48 @@ export function createPromptSuggestController({ getSettings }) {
     }, FINISH_SETTLE_MS);
   }
 
+  const TAB_YIELD_TARGET_SEL = [
+    'input',
+    'textarea',
+    'select',
+    '[contenteditable="true"]',
+    '.xterm',
+    '[role="dialog"]',
+    '[role="menu"]',
+    '[role="listbox"]',
+    '[role="combobox"]',
+    '[aria-modal="true"]',
+    '.op-drawer',
+    '[data-sidebar-right-session]',
+    '.op-side-question',
+  ].join(', ');
+
+  const TAB_YIELD_OVERLAY_SEL =
+    '[role="dialog"]:not([hidden]), [aria-modal="true"]:not([hidden]), [role="menu"]:not([hidden]), [role="listbox"]:not([hidden]), .op-drawer';
+
   function isTargetInComposer(input, target) {
     if (!input || !target) return false;
     if (target === input || input.contains?.(target)) return true;
     const card = input.closest?.('[data-composer-card]');
     return Boolean(card && card.contains?.(target));
+  }
+
+  function canHandleTabShortcut(input, target) {
+    if (!input || !composerIsEmpty(input)) return false;
+    if (isTargetInComposer(input, target)) return true;
+    if (target && typeof target.closest === 'function' && target.closest(TAB_YIELD_TARGET_SEL)) {
+      return false;
+    }
+    const active = document.activeElement;
+    if (active && active !== input && !isTargetInComposer(input, active)) {
+      if (typeof active.closest === 'function' && active.closest(TAB_YIELD_TARGET_SEL)) {
+        return false;
+      }
+    }
+    if (document.querySelector?.(TAB_YIELD_OVERLAY_SEL)) {
+      return false;
+    }
+    return true;
   }
 
   function resolveActiveSigKey() {
@@ -877,7 +916,7 @@ export function createPromptSuggestController({ getSettings }) {
   function attach() {
     if (onKey) return;
     onKey = (ev) => {
-      if (!suggestion) return;
+      if (!suggestion || ev.defaultPrevented) return;
       const input = findMainComposerInput(document);
       if (ev.key === 'Escape') {
         if (input && isTargetInComposer(input, ev.target)) {
@@ -886,8 +925,7 @@ export function createPromptSuggestController({ getSettings }) {
         return;
       }
       if (ev.key !== 'Tab' || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-      if (!input || !isTargetInComposer(input, ev.target)) return;
-      if (!composerIsEmpty(input)) return;
+      if (!canHandleTabShortcut(input, ev.target)) return;
       ev.preventDefault();
       ev.stopPropagation();
       if (ev.shiftKey) cycle();
@@ -895,14 +933,26 @@ export function createPromptSuggestController({ getSettings }) {
     };
     onInput = (ev) => {
       const input = findMainComposerInput(document);
-      if (input && (input === ev.target || input.contains?.(ev.target)) && !composerIsEmpty(input)) {
-        dismissActiveTurn();
+      if (!input || (input !== ev.target && !input.contains?.(ev.target))) return;
+      if (!composerIsEmpty(input)) {
+        hide();
+      } else if (!isComposing) {
+        sync();
       }
     };
     onComposition = (ev) => {
       const input = findMainComposerInput(document);
       if (input && (input === ev.target || input.contains?.(ev.target))) {
-        dismissActiveTurn();
+        isComposing = true;
+        hide();
+      }
+    };
+    onCompositionEnd = (ev) => {
+      const input = findMainComposerInput(document);
+      if (!isComposing && (!input || (input !== ev.target && !input.contains?.(ev.target)))) return;
+      isComposing = false;
+      if (input && composerIsEmpty(input)) {
+        sync();
       }
     };
     onVisibility = () => {
@@ -914,6 +964,7 @@ export function createPromptSuggestController({ getSettings }) {
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('input', onInput, true);
     document.addEventListener('compositionstart', onComposition, true);
+    document.addEventListener('compositionend', onCompositionEnd, true);
     document.addEventListener('visibilitychange', onVisibility);
     if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
       window.addEventListener('focus', onWindowFocus);
@@ -946,6 +997,7 @@ export function createPromptSuggestController({ getSettings }) {
     clearSyncTimer();
     clearStreamPoll();
     isStreaming = false;
+    isComposing = false;
     resetPrefetch();
     reqSeq += 1;
     if (mo) {
@@ -955,6 +1007,7 @@ export function createPromptSuggestController({ getSettings }) {
     if (onKey) document.removeEventListener('keydown', onKey, true);
     if (onInput) document.removeEventListener('input', onInput, true);
     if (onComposition) document.removeEventListener('compositionstart', onComposition, true);
+    if (onCompositionEnd) document.removeEventListener('compositionend', onCompositionEnd, true);
     if (onVisibility) document.removeEventListener('visibilitychange', onVisibility);
     if (onWindowFocus && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
       window.removeEventListener('focus', onWindowFocus);
@@ -962,6 +1015,7 @@ export function createPromptSuggestController({ getSettings }) {
     onKey = null;
     onInput = null;
     onComposition = null;
+    onCompositionEnd = null;
     onVisibility = null;
     onWindowFocus = null;
     hide();
