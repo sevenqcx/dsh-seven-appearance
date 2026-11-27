@@ -9350,6 +9350,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   wallpaperSurfaceGlass: true,
   selectionAskEnabled: true,
   promptSuggestEnabled: true,
+  promptSuggestModel: '',
   codeFoldEnabled: true,
   codeFoldThreshold: 24,
   turnOutlineEnabled: true,
@@ -9563,6 +9564,9 @@ function sanitizeSettings(raw) {
     wallpaperSurfaceGlass: typeof src.wallpaperSurfaceGlass === 'boolean' ? src.wallpaperSurfaceGlass : d.wallpaperSurfaceGlass,
     selectionAskEnabled: typeof src.selectionAskEnabled === 'boolean' ? src.selectionAskEnabled : d.selectionAskEnabled,
     promptSuggestEnabled: typeof src.promptSuggestEnabled === 'boolean' ? src.promptSuggestEnabled : d.promptSuggestEnabled,
+    promptSuggestModel: typeof src.promptSuggestModel === 'string' && src.promptSuggestModel.trim().length <= 160
+      ? src.promptSuggestModel.trim()
+      : d.promptSuggestModel,
     codeFoldEnabled: typeof src.codeFoldEnabled === 'boolean' ? src.codeFoldEnabled : d.codeFoldEnabled,
     codeFoldThreshold: Math.round(clampNum(src.codeFoldThreshold, 12, 80, d.codeFoldThreshold)),
     turnOutlineEnabled: typeof src.turnOutlineEnabled === 'boolean' ? src.turnOutlineEnabled : d.turnOutlineEnabled,
@@ -10128,8 +10132,10 @@ html[data-op-enabled="1"][data-op-accent="rose"] body[data-ds-dark-theme] {
 }
 
 /* ── Composer card specular & prism rim glow ──────────────────────────── */
-html[data-op-enabled="1"] [data-composer-card] {
+html[data-op-enabled="1"] [data-composer-card],
+html[data-op-enabled="1"] [data-composer-card]:has(+ [data-composer-dock] .ur-row) {
   position: relative;
+  border: 0;
   border-radius: var(--op-radius-card);
   box-shadow: inset 0 1px 0 var(--op-specular), var(--op-card-shadow);
   transition: box-shadow 220ms var(--op-ease-out), border-color 180ms ease;
@@ -10139,7 +10145,8 @@ html[data-op-enabled="1"][data-op-mascot-active="1"] [data-composer-card] {
   overflow: visible !important;
 }
 
-html[data-op-enabled="1"][data-op-ambient="subtle"] [data-composer-card]:focus-within {
+html[data-op-enabled="1"][data-op-ambient="subtle"] [data-composer-card]:focus-within,
+html[data-op-enabled="1"][data-op-ambient="subtle"] [data-composer-card]:has(+ [data-composer-dock] .ur-row):focus-within {
   box-shadow:
     inset 0 1px 0 var(--op-specular),
     0 0 0 1px color-mix(in srgb, var(--op-accent) 44%, transparent),
@@ -10153,10 +10160,12 @@ html[data-op-enabled="1"][data-op-ambient="subtle"][data-op-streaming="1"] [data
   position: absolute;
   inset: -1.5px;
   border-radius: calc(var(--op-radius-card) + 1.5px);
+  corner-shape: inherit;
   padding: 1.5px;
   background: var(--op-prism-conic);
   -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
   mask-composite: exclude;
   pointer-events: none;
   opacity: 0.46;
@@ -10197,6 +10206,7 @@ html[data-op-enabled="1"][data-op-ambient="rich"] .op-ambient-aura {
   content: "";
   position: absolute;
   border-radius: 50%;
+  corner-shape: round;
   filter: blur(88px);
   pointer-events: none;
   will-change: transform, opacity;
@@ -10246,6 +10256,7 @@ html[data-op-enabled="1"][data-op-streaming="1"] .op-ambient-aura::before {
   width: 2.2px;
   height: 18px;
   border-radius: 999px;
+  corner-shape: round;
   background: var(--op-accent, #669DF6);
   box-shadow: 0 0 8px var(--op-accent-glow, rgba(92, 198, 252, 0.55));
   pointer-events: none;
@@ -10303,7 +10314,7 @@ html[data-op-enabled="1"][data-op-has-wallpaper="1"][data-op-wp-glass="1"] #root
   background: transparent !important;
 }
 html[data-op-enabled="1"][data-op-has-wallpaper="1"] #root,
-html[data-op-enabled="1"][data-op-has-wallpaper="1"] body > div:not(.op-wallpaper-layer):not(.op-ambient-aura):not(.op-smooth-caret):not(.op-outline-rail):not(.op-drawer-backdrop):not(.op-selection-pill):not(.op-selection-toast) {
+html[data-op-enabled="1"][data-op-has-wallpaper="1"] body > div:not(.op-wallpaper-layer):not(.op-ambient-aura):not(.op-smooth-caret):not(.op-outline-rail):not(.op-drawer-backdrop):not(.op-selection-pill):not(.op-selection-toast):not(.op-context-menu) {
   position: relative;
   z-index: 1;
 }
@@ -10358,6 +10369,7 @@ html[data-op-enabled="1"][data-op-has-wallpaper="1"] body > div:not(.op-wallpape
   height: 8px;
   transform: translateX(-50%);
   border-radius: 999px;
+  corner-shape: round;
   background: radial-gradient(50% 50% at 50% 50%, rgba(0, 0, 0, 0.42) 0%, rgba(0, 0, 0, 0.16) 58%, transparent);
   pointer-events: none;
   z-index: 0;
@@ -10449,6 +10461,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   background: var(--op-accent-soft, rgba(102, 157, 246, 0.14));
   color: var(--op-accent, #669DF6);
   border-radius: 999px;
+  corner-shape: round;
   padding: 2px 10px;
   font-size: 11px;
   font-weight: 500;
@@ -10487,6 +10500,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   background: var(--op-menu-bg, rgba(16, 17, 22, 0.92));
   color: var(--op-fg-2, #C4C4CE);
   border-radius: 999px;
+  corner-shape: round;
   padding: 5px 10px;
   font-size: 11px;
   font-weight: 500;
@@ -10508,6 +10522,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   gap: 6px;
   padding: 8px 5px;
   border-radius: 999px;
+  corner-shape: round;
   background: color-mix(in srgb, var(--op-menu-bg, rgba(16, 17, 22, 0.9)) 80%, transparent);
   border: 1px solid var(--op-border-1, rgba(255, 255, 255, 0.08));
   backdrop-filter: blur(12px);
@@ -10519,6 +10534,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 7px;
   height: 7px;
   border-radius: 999px;
+  corner-shape: round;
   border: 0;
   padding: 0;
   background: var(--op-fg-3, #8A8A98);
@@ -10632,6 +10648,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   background: transparent;
   color: var(--op-fg-3, #8A8A98);
   border-radius: 999px;
+  corner-shape: round;
   padding: 2px 7px;
   font-size: 10.5px;
   cursor: pointer;
@@ -10714,6 +10731,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   height: 26px;
   padding: 0 9px;
   border-radius: 999px;
+  corner-shape: round;
   border: 1px solid var(--op-border-2, rgba(255, 255, 255, 0.14));
   background: var(--op-menu-bg, rgba(18, 19, 25, 0.92));
   color: var(--op-fg-1, #F2F2F5);
@@ -10881,6 +10899,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 7px;
   height: 7px;
   border-radius: 999px;
+  corner-shape: round;
   background: var(--chip-accent, #669DF6);
 }
 .op-pills {
@@ -10893,6 +10912,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   background: transparent;
   color: var(--dsw-alias-label-secondary, var(--op-fg-2));
   border-radius: 999px;
+  corner-shape: round;
   padding: 4px 10px;
   font-size: 12px;
   cursor: pointer;
@@ -10911,6 +10931,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 9px;
   height: 9px;
   border-radius: 999px;
+  corner-shape: round;
   flex: none;
 }
 .op-switch {
@@ -10918,6 +10939,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 36px;
   height: 20px;
   border-radius: 999px;
+  corner-shape: round;
   border: 0;
   padding: 0;
   background: var(--dsw-alias-border-l3, rgba(128, 128, 128, 0.35));
@@ -10936,6 +10958,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 16px;
   height: 16px;
   border-radius: 999px;
+  corner-shape: round;
   background: #FFFFFF;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
   transition: transform 160ms var(--op-ease-spring);
@@ -10946,6 +10969,22 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
 .op-slider {
   width: 132px;
   accent-color: var(--op-accent, #669DF6);
+}
+.op-select {
+  max-width: 210px;
+  min-width: 148px;
+  border: 1px solid var(--dsw-alias-border-l2, var(--op-border-2));
+  background: var(--dsw-alias-interactive-bg-hover, rgba(128, 128, 128, 0.12));
+  color: var(--dsw-alias-label-primary, var(--op-fg-1));
+  border-radius: 8px;
+  padding: 5px 8px;
+  font-size: 12px;
+  outline: none;
+  cursor: pointer;
+}
+.op-select:hover,
+.op-select:focus-visible {
+  border-color: var(--op-accent, #669DF6);
 }
 .op-btn {
   border: 1px solid var(--dsw-alias-border-l2, var(--op-border-2));
@@ -10995,6 +11034,7 @@ html[data-op-enabled="1"] pre[data-op-folded="1"] > .op-code-fold-bar {
   width: 18px;
   height: 18px;
   border-radius: 999px;
+  corner-shape: round;
   border: 0;
   background: rgba(0, 0, 0, 0.65);
   color: #FFF;
@@ -11247,6 +11287,7 @@ html[data-op-enabled="1"][data-op-facets="1"] kbd {
   gap: 3px;
   padding: 4px;
   border-radius: 999px;
+  corner-shape: round;
   background: var(--op-menu-bg, rgba(16, 17, 22, 0.96));
   border: 1px solid var(--op-border-2, rgba(255, 255, 255, 0.16));
   box-shadow: 0 10px 30px -6px rgba(0, 0, 0, 0.42), inset 0 1px 0 var(--op-specular, rgba(255, 255, 255, 0.08));
@@ -11259,6 +11300,7 @@ html[data-op-enabled="1"][data-op-facets="1"] kbd {
   background: transparent;
   color: var(--op-fg-2, #C4C4CE);
   border-radius: 999px;
+  corner-shape: round;
   padding: 4px 10px;
   font-size: 11.5px;
   font-weight: 500;
@@ -11287,6 +11329,7 @@ html[data-op-enabled="1"][data-op-facets="1"] kbd {
   z-index: 1250;
   padding: 6px 14px;
   border-radius: 999px;
+  corner-shape: round;
   background: var(--op-menu-bg, rgba(16, 17, 22, 0.94));
   border: 1px solid color-mix(in srgb, var(--op-accent, #669DF6) 44%, var(--op-border-2));
   color: var(--op-fg-1, #F2F2F5);
@@ -11323,21 +11366,36 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-arrive="1"] {
 html[data-op-enabled="1"][data-op-choreography="1"] details[open][data-op-unfold="1"] > :not(summary) {
   animation: op-details-unfold 220ms var(--op-ease-out) both;
 }
-html[data-op-enabled="1"][data-op-choreography="1"][data-op-complete-pulse="1"] [data-composer-card],
+html[data-op-enabled="1"][data-op-choreography="1"][data-op-complete-pulse="1"] [data-composer-card] {
+  animation: op-complete-glint 920ms var(--op-ease-out);
+}
 html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"] {
   animation: op-complete-glint 920ms var(--op-ease-out);
   border-radius: var(--op-radius-sm, 10px);
 }
 
 /* ── Dynamic Composer GPU Canvas Prism Rim ────────────────────────────── */
+.op-prism-rim-shell {
+  position: absolute;
+  inset: -1.5px;
+  padding: 1.75px;
+  border-radius: calc(var(--op-radius-card, 16px) + 1.5px);
+  corner-shape: inherit;
+  box-sizing: border-box;
+  pointer-events: none;
+  z-index: 4;
+  overflow: hidden;
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  mask-composite: exclude;
+}
 .op-prism-rim-canvas {
   position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
   pointer-events: none;
-  z-index: 4;
-  border-radius: inherit;
   display: block;
 }
 
@@ -11359,6 +11417,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   height: 22px;
   padding: 0 4px 0 6px;
   border-radius: 999px;
+  corner-shape: round;
   border: 1px solid var(--op-border-2, rgba(255, 255, 255, 0.14));
   background: color-mix(in srgb, var(--op-menu-bg, rgba(16, 17, 22, 0.92)) 88%, transparent);
   color: var(--op-fg-2, #C4C4CE);
@@ -11426,6 +11485,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   padding: 0;
   border: 0;
   border-radius: 999px;
+  corner-shape: round;
   background: transparent;
   color: var(--op-fg-3, #8A8A98);
   font-size: 12px;
@@ -11442,6 +11502,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   width: 6px;
   height: 12px;
   border-radius: 999px;
+  corner-shape: round;
   overflow: hidden;
   border: 1px solid var(--op-border-3, rgba(255, 255, 255, 0.22));
   background: color-mix(in srgb, var(--op-bg-0, #08090C) 65%, transparent);
@@ -11454,6 +11515,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   bottom: 0;
   height: 28%;
   border-radius: 999px;
+  corner-shape: round;
   background: linear-gradient(180deg, var(--op-prism-cyan, #5CC6FC) 0%, var(--op-accent, #669DF6) 55%, var(--op-prism-iris, #9B72CB) 100%);
   transition: height 240ms var(--op-ease-out);
 }
@@ -11503,6 +11565,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   height: 28px;
   padding: 0 7px 0 6px;
   border-radius: var(--op-radius-pill, 999px);
+  corner-shape: round;
   border: 1px solid transparent;
   outline: none;
   background: transparent;
@@ -11553,6 +11616,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   height: 18px;
   padding: 0 6px;
   border-radius: 999px;
+  corner-shape: round;
   font-size: 10.5px;
   font-weight: 600;
   line-height: 1;
@@ -11576,6 +11640,7 @@ html[data-op-enabled="1"][data-op-choreography="1"] [data-op-complete-pulse="1"]
   width: 5px;
   height: 5px;
   border-radius: 50%;
+  corner-shape: round;
   background: var(--op-accent, #669DF6);
   box-shadow: 0 0 6px var(--op-accent-glow, rgba(102, 157, 246, 0.5));
 }
@@ -11869,6 +11934,7 @@ html[data-op-effective-theme="light"] .op-mp-panel {
 .op-mp-list::-webkit-scrollbar-thumb {
   background: var(--op-border-3, rgba(255, 255, 255, 0.18));
   border-radius: 999px;
+  corner-shape: round;
 }
 .op-mp-list::-webkit-scrollbar-track {
   background: transparent;
@@ -12139,6 +12205,7 @@ html[data-op-effective-theme="light"] .op-mp-effort-dock {
   height: 20px;
   padding: 0 8px;
   border-radius: 999px;
+  corner-shape: round;
   font-size: 11px;
   font-weight: 600;
   color: var(--op-fg-1, #F2F2F5);
@@ -12163,6 +12230,7 @@ html[data-op-effective-theme="light"] .op-mp-effort-dock {
   width: 5px;
   height: 5px;
   border-radius: 50%;
+  corner-shape: round;
   background: var(--op-accent, #669DF6);
   box-shadow: 0 0 6px var(--op-accent-glow, rgba(102, 157, 246, 0.5));
 }
@@ -12302,6 +12370,7 @@ html[data-op-enabled="1"][data-op-accent="rose"] .op-effort-slider {
   top: 1px;
   height: 44%;
   border-radius: 999px;
+  corner-shape: round;
   background: linear-gradient(180deg, rgba(255, 255, 255, 0.34) 0%, rgba(255, 255, 255, 0.02) 100%);
   pointer-events: none;
 }
@@ -12379,6 +12448,7 @@ html[data-op-effective-theme="light"] .op-effort-crystal-cv {
   left: 0;
   top: 0;
   border-radius: 50%;
+  corner-shape: round;
   background: radial-gradient(circle, #FFFFFF 0%, var(--op-effort-star) 56%, transparent 100%);
   box-shadow: 0 0 4px #FFFFFF, 0 0 9px var(--op-effort-glow);
   animation: op-effort-star-twinkle 1.9s ease-in-out infinite;
@@ -12418,6 +12488,7 @@ html[data-op-effective-theme="light"] .op-effort-crystal-cv {
   width: 3.5px;
   height: 3.5px;
   border-radius: 999px;
+  corner-shape: round;
   transform: translate(-50%, -50%) rotate(45deg);
   background: rgba(255, 255, 255, 0.24);
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.22);
@@ -12438,6 +12509,7 @@ html[data-op-effective-theme="light"] .op-effort-crystal-cv {
   width: 20px;
   height: 20px;
   border-radius: 50%;
+  corner-shape: round;
   transform: translate(-50%, -50%);
   pointer-events: none;
   background:
@@ -12464,6 +12536,7 @@ html[data-op-effective-theme="light"] .op-effort-crystal-cv {
   position: absolute;
   inset: 2.5px;
   border-radius: 50%;
+  corner-shape: round;
   background: conic-gradient(
     from 25deg,
     rgba(255, 255, 255, 0.78) 0deg,
@@ -12617,38 +12690,143 @@ html[data-op-effective-theme="light"] .op-effort-knob {
   }
 }
 
-/* ── Next-prompt suggestion chip ───────────────────────────────────────── */
-.op-prompt-suggest {
-  display: flex; align-items: center; gap: 8px; max-width: min(640px, 100%);
-  margin: 0 auto 8px; padding: 6px 10px 6px 8px; border-radius: 999px;
-  border: 1px solid color-mix(in srgb, var(--op-accent, #7a93f8) 35%, transparent);
-  background: color-mix(in srgb, var(--op-accent, #7a93f8) 9%, var(--dsw-alias-bg-layer-1, #111));
-  color: var(--dsw-alias-label-primary, inherit); font-size: 12.5px; line-height: 1.4;
-  cursor: pointer; text-align: left; animation: op-suggest-in .22s ease-out;
+/* ── Next-prompt inline ghost suggestion inside composer ───────────────── */
+[data-op-prompt-ghost="1"] {
+  position: relative;
 }
-.op-prompt-suggest:hover { border-color: color-mix(in srgb, var(--op-accent, #7a93f8) 60%, transparent); }
-.op-prompt-suggest-label { flex: none; font-size: 11px; opacity: .7; color: var(--op-accent, #7a93f8); }
-.op-prompt-suggest-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.op-prompt-suggest kbd { flex: none; font: 10.5px/1 ui-monospace, monospace; padding: 3px 5px; border-radius: 4px; opacity: .6;
-  border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+[data-op-prompt-ghost="1"] [data-composer-placeholder] {
+  opacity: 0 !important;
+  visibility: hidden !important;
+}
+[data-composer-composing] ~ .op-prompt-suggest {
+  visibility: hidden !important;
+}
+.op-prompt-suggest {
+  position: absolute;
+  inset: 4px 8px auto 14px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  max-width: calc(100% - 22px);
+  color: color-mix(in srgb, var(--dsw-alias-label-primary, var(--op-fg-1, #8e95a5)) 52%, transparent);
+  pointer-events: none;
+  user-select: none;
+  animation: op-suggest-in .18s ease-out;
+}
+.op-prompt-suggest-text {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.op-prompt-suggest-actions {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  pointer-events: auto;
+}
+.op-prompt-suggest-kbd,
+.op-prompt-suggest-next {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 20px;
+  border-radius: 5px;
+  border: 1px solid color-mix(in srgb, currentColor 28%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1, transparent) 55%, transparent);
+  color: inherit;
+  cursor: pointer;
+  transition: color 120ms ease, border-color 120ms ease, background 120ms ease, opacity 120ms ease;
+}
+.op-prompt-suggest-kbd {
+  font: 11px/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  padding: 0 6px;
+}
+.op-prompt-suggest-next {
+  width: 20px;
+  padding: 0;
+  font-size: 12px;
+  line-height: 1;
+  opacity: .78;
+}
+.op-prompt-suggest-kbd:hover,
+.op-prompt-suggest-next:hover:not(:disabled) {
+  color: var(--op-accent, #669DF6);
+  border-color: color-mix(in srgb, var(--op-accent, #669DF6) 55%, transparent);
+  background: color-mix(in srgb, var(--op-accent, #669DF6) 10%, transparent);
+  opacity: 1;
+}
+.op-prompt-suggest-next[data-loading="1"] {
+  opacity: .55;
+  animation: op-suggest-spin .7s linear infinite;
+}
+@keyframes op-suggest-spin {
+  to { transform: rotate(360deg); }
+}
 @keyframes op-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.op-side-question {
+  display: flex;
+  width: 100%;
+  height: 100%;
+  min-width: 0;
+  min-height: 0;
+}
+.op-context-menu {
+  position: fixed; z-index: 2147483000; min-width: 168px; max-width: 280px; padding: 5px;
+  border-radius: 10px; display: flex; flex-direction: column; gap: 1px;
+  border: 1px solid color-mix(in srgb, var(--op-accent, #7a93f8) 28%, transparent);
+  background: color-mix(in srgb, var(--dsw-alias-bg-layer-1, #16171c) 92%, transparent);
+  backdrop-filter: blur(14px) saturate(1.3); -webkit-backdrop-filter: blur(14px) saturate(1.3);
+  box-shadow: 0 10px 32px rgba(0,0,0,.32), 0 0 0 1px rgba(255,255,255,.03) inset;
+  color: var(--dsw-alias-label-primary, inherit); font-size: 12.5px; animation: op-ctx-in .12s ease-out;
+}
+.op-context-menu-item {
+  all: unset; box-sizing: border-box; display: block; width: 100%; padding: 6px 10px; border-radius: 6px;
+  cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.op-context-menu-item:hover, .op-context-menu-item:focus-visible {
+  background: color-mix(in srgb, var(--op-accent, #7a93f8) 18%, transparent);
+}
+.op-context-menu-sep { height: 1px; margin: 4px 6px; background: color-mix(in srgb, currentColor 12%, transparent); }
+@keyframes op-ctx-in { from { opacity: 0; transform: scale(.97); } to { opacity: 1; transform: none; } }
 `;
 }
 
 // ── src/mascot-controller.js ──────────────────────────────────────────
 // Mascot stage controller: bridges Obsidian Prism's dual-mascot-rig onto DSH [data-composer-card]
 
+const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+
+function findMainConversationScope(doc) {
+  if (!doc || typeof doc.querySelectorAll !== 'function') return doc;
+  const sessions = doc.querySelectorAll('[data-conversation-session]');
+  for (const el of sessions) {
+    if (!el.closest?.(MASCOT_SIDEBAR_EXCLUDED) && !el.hidden && !el.closest?.('[hidden], [inert]')) {
+      return el;
+    }
+  }
+  return doc;
+}
+
 function detectStreamingActive(doc = document) {
   if (!doc) return false;
-  if (
-    doc.querySelector(
-      '[data-streaming="true"], [data-chat-running]:not([data-holding]), [data-chat-running="true"], [data-running="true"][data-session-id]'
-    )
-  ) {
+  const scope = findMainConversationScope(doc);
+  const runningSel = '[data-streaming="true"], [data-chat-running]:not([data-holding])';
+  if (typeof scope.querySelectorAll === 'function') {
+    for (const el of scope.querySelectorAll(runningSel)) {
+      if (!el.closest?.(MASCOT_SIDEBAR_EXCLUDED) && !el.hidden && !el.closest?.('[hidden], [inert]')) {
+        return true;
+      }
+    }
+  } else if (scope.querySelector?.(runningSel)) {
     return true;
   }
-  const card = doc.querySelector('[data-composer-card]');
-  if (card) {
+  const card = scope.querySelector?.('[data-composer-card]') || findMainComposerCard(doc);
+  if (card && !card.closest?.(MASCOT_SIDEBAR_EXCLUDED)) {
     if (card.querySelector('[data-sending], button[aria-busy="true"]')) {
       return true;
     }
@@ -12881,7 +13059,7 @@ function createMascotController({ getRig, getSettings, onStreamingChange }) {
     const rigApi = getRig();
     if (!rigApi || typeof rigApi.mountDualMascotStage !== 'function') return;
 
-    const card = document.querySelector('[data-composer-card]');
+    const card = findMainComposerCard(document);
     if (!card || !card.isConnected) {
       unmountRig();
       return;
@@ -12958,7 +13136,16 @@ function createMascotController({ getRig, getSettings, onStreamingChange }) {
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['data-chat-running', 'data-holding', 'data-streaming', 'data-sending', 'aria-busy', 'hidden', 'aria-expanded'],
+        attributeFilter: [
+          'data-chat-running',
+          'data-holding',
+          'data-streaming',
+          'data-sending',
+          'aria-busy',
+          'hidden',
+          'aria-expanded',
+          'data-conversation-session',
+        ],
       });
     }
     pollTimer = setInterval(() => {
@@ -15141,20 +15328,38 @@ function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
   return `${quoted}\n\n`;
 }
 
+const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+
+function findMainComposerCard(doc = document) {
+  if (!doc) return null;
+  const isMainVisible = (el) =>
+    Boolean(el && !el.hidden && !el.closest?.(COMPOSER_SIDEBAR_EXCLUDED) && !el.closest?.('[hidden], [inert]'));
+  if (typeof doc.querySelectorAll === 'function') {
+    const cards = doc.querySelectorAll('[data-composer-card]');
+    for (const card of cards) {
+      if (isMainVisible(card)) return card;
+    }
+    if (cards && cards.length > 0) return null;
+  }
+  const single = doc.querySelector?.('[data-composer-card]') || null;
+  return single && isMainVisible(single) ? single : null;
+}
+
 function findComposerInput(doc = document) {
   if (!doc) return null;
-  const card = doc.querySelector('[data-composer-card]');
+  const card = findMainComposerCard(doc);
   if (card) {
     const ce = card.querySelector('[contenteditable="true"]');
     if (ce) return ce;
     const ta = card.querySelector('textarea:not([disabled])');
     if (ta) return ta;
   }
-  return (
+  const isMain = (el) => Boolean(el && !el.closest?.(COMPOSER_SIDEBAR_EXCLUDED));
+  const fallback =
     doc.querySelector('[data-composer-card] [contenteditable="true"]') ||
     doc.querySelector('textarea[data-composer-input], textarea:not([disabled]):not(.op-hidden-input)') ||
-    doc.querySelector('[contenteditable="true"]')
-  );
+    doc.querySelector('[contenteditable="true"]');
+  return isMain(fallback) ? fallback : null;
 }
 
 function createSyntheticPasteEvent(text) {
@@ -15354,7 +15559,7 @@ function getNativeTextSurfaceRect() {
   return null;
 }
 
-function createSelectionAskController({ getSettings }) {
+function createSelectionAskController({ getSettings, openSideQuestion }) {
   let pillEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -15362,6 +15567,7 @@ function createSelectionAskController({ getSettings }) {
   let repositionRaf = 0;
   let pointerSelecting = false;
   let activeText = '';
+  let activeSessionId = '';
   let disposed = false;
 
   const EXCLUDE_SELECTOR = [
@@ -15372,6 +15578,7 @@ function createSelectionAskController({ getSettings }) {
     '.op-drawer-backdrop',
     '.op-outline-rail',
     '.op-selection-pill',
+    '.op-side-question',
     '.op-status-vial',
     '.op-code-fold-bar',
     '[data-op-ui="1"]',
@@ -15410,6 +15617,7 @@ function createSelectionAskController({ getSettings }) {
 
   function hidePill() {
     activeText = '';
+    activeSessionId = '';
     if (repositionRaf) {
       cancelAnimationFrame(repositionRaf);
       repositionRaf = 0;
@@ -15443,6 +15651,13 @@ function createSelectionAskController({ getSettings }) {
     // Do not show on hero empty state headline
     if (anchorEl.closest('[data-phase="hero"]') && !anchorEl.closest('[data-chat-flow]')) return null;
 
+    const conversation = anchorEl.closest('[data-conversation-session]');
+    const sessionId =
+      conversation && conversation.contains(focusEl) && !conversation.closest('.op-side-question')
+        ? conversation.getAttribute('data-conversation-session') || ''
+        : '';
+    if (!sessionId) return null;
+
     const rect = getSelectionBoundingRect(range);
     if (!rect || (rect.width === 0 && rect.height === 0)) return null;
 
@@ -15450,7 +15665,7 @@ function createSelectionAskController({ getSettings }) {
     const vh = window.innerHeight || 800;
     if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
 
-    return { text, rect };
+    return { text, rect, sessionId };
   }
 
   async function copySelection(text, zh) {
@@ -15477,6 +15692,7 @@ function createSelectionAskController({ getSettings }) {
     const s = getSettings();
     const zh = isZhUi(s);
     const text = activeText;
+    const sessionId = activeSessionId;
     if (!text) return;
 
     if (kind === 'copy') {
@@ -15485,29 +15701,22 @@ function createSelectionAskController({ getSettings }) {
       return;
     }
 
-    const composer = findComposerInput(document);
-    if (!composer) {
-      showToast(zh ? '未找到输入框' : 'Composer input not found', 'err');
-      hidePill();
+    hidePill();
+    if (!sessionId || typeof openSideQuestion !== 'function') {
+      showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
       return;
     }
-
-    const formatted = formatSelectionQuote(text, kind, zh);
-    const ok = insertTextIntoComposer(composer, formatted);
-    if (ok) {
-      try {
-        window.getSelection?.()?.removeAllRanges?.();
-      } catch {
-        // ignore
-      }
-      showToast(
-        kind === 'explain'
-          ? (zh ? '已填充解释追问到输入框' : 'Inserted explain prompt into composer')
-          : (zh ? '已引用到输入框' : 'Quoted into composer'),
-        'ok',
-      );
-    }
-    hidePill();
+    Promise.resolve(openSideQuestion(sessionId, text, kind, zh))
+      .then(() => {
+        try {
+          window.getSelection?.()?.removeAllRanges?.();
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {
+        showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+      });
   }
 
   function positionPill(rect) {
@@ -15520,7 +15729,7 @@ function createSelectionAskController({ getSettings }) {
     const gap = 10;
 
     // Respect composer top edge so pill never lands under the composer card
-    const composerCard = document.querySelector('[data-composer-card]');
+    const composerCard = findMainComposerCard(document);
     const composerTop = composerCard ? composerCard.getBoundingClientRect().top : vh;
     const maxBottom = Math.min(vh - 12, composerTop - 8);
 
@@ -15565,10 +15774,11 @@ function createSelectionAskController({ getSettings }) {
     pillEl.style.top = `${Math.round(top)}px`;
   }
 
-  function renderPill(text, rect) {
+  function renderPill(text, rect, sessionId) {
     const s = getSettings();
     const zh = isZhUi(s);
     activeText = text;
+    activeSessionId = sessionId;
 
     if (!pillEl || !pillEl.isConnected) {
       pillEl = document.createElement('div');
@@ -15589,8 +15799,8 @@ function createSelectionAskController({ getSettings }) {
     pillEl.textContent = '';
 
     const actions = [
-      { id: 'quote', label: zh ? '引用追问' : 'Quote & Ask', primary: true },
-      { id: 'explain', label: zh ? '解释这段' : 'Explain', primary: false },
+      { id: 'quote', label: zh ? '侧边追问' : 'Ask in sidebar', primary: true },
+      { id: 'explain', label: zh ? '侧边解释' : 'Explain', primary: false },
       { id: 'copy', label: zh ? '复制' : 'Copy', primary: false },
     ];
 
@@ -15634,7 +15844,7 @@ function createSelectionAskController({ getSettings }) {
       hidePill();
       return;
     }
-    renderPill(eligible.text, eligible.rect);
+    renderPill(eligible.text, eligible.rect, eligible.sessionId);
   }
 
   function scheduleEvaluate(delay = 45) {
@@ -15746,28 +15956,614 @@ function createSelectionAskController({ getSettings }) {
   return { start, refresh, dispose };
 }
 
+// ── src/context-menu-controller.js ──────────────────────────────────────────
+// Conversation context menu for dsh-obsidian-prism
+
+
+const SKIP_SELECTOR = [
+  '[data-composer-card]',
+  '[data-composer-dock]',
+  'textarea',
+  'input',
+  'select',
+  '[contenteditable="true"]',
+  '.op-drawer',
+  '.op-context-menu',
+  '[role="dialog"]',
+].join(',');
+
+async function writeClipboard(text) {
+  if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+    await navigator.clipboard.writeText(text);
+    return;
+  }
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.position = 'fixed';
+  ta.style.opacity = '0';
+  document.body.appendChild(ta);
+  ta.select();
+  document.execCommand('copy');
+  ta.remove();
+}
+
+function createContextMenuController({ getSettings, openSideQuestion }) {
+  let menuEl = null;
+  let toastEl = null;
+  let toastTimer = null;
+  let disposed = false;
+
+  function showToast(msg, tone = 'ok') {
+    if (disposed || !document.body) return;
+    if (toastTimer) clearTimeout(toastTimer);
+    toastEl?.remove();
+    toastEl = document.createElement('div');
+    toastEl.className = 'op-selection-toast';
+    toastEl.setAttribute('data-op-ui', '1');
+    toastEl.setAttribute('data-tone', tone);
+    toastEl.setAttribute('data-visible', '1');
+    toastEl.setAttribute('role', 'status');
+    toastEl.textContent = msg;
+    document.body.appendChild(toastEl);
+    toastTimer = setTimeout(() => { toastEl?.remove(); toastEl = null; }, 2200);
+  }
+
+  function hideMenu() {
+    menuEl?.remove();
+    menuEl = null;
+  }
+
+  async function copy(text, zh, label) {
+    try {
+      await writeClipboard(text);
+      showToast(zh ? `已复制${label.zh}` : `Copied ${label.en}`);
+    } catch {
+      showToast(zh ? '复制失败' : 'Copy failed', 'err');
+    }
+  }
+
+  function insert(text, mode, zh) {
+    const composer = findComposerInput(document);
+    if (!composer) return showToast(zh ? '未找到输入框' : 'Composer input not found', 'err');
+    if (insertTextIntoComposer(composer, formatSelectionQuote(text, mode, zh))) {
+      showToast(mode === 'explain' ? (zh ? '已填充解释追问' : 'Explain prompt inserted') : (zh ? '已引用到输入框' : 'Quoted into composer'));
+    }
+  }
+
+  function collectItems(target, zh, selectionAskEnabled) {
+    const items = [];
+    const sel = window.getSelection?.();
+    const selText = sel && !sel.isCollapsed ? String(sel.toString()).trim() : '';
+    if (selText) {
+      items.push({ label: zh ? '复制选中内容' : 'Copy selection', run: () => copy(selText, zh, { zh: '选中内容', en: 'selection' }) });
+      if (selectionAskEnabled) {
+        const conversation = target.closest('[data-conversation-session]');
+        const sessionId = conversation && !conversation.closest('.op-side-question')
+          ? conversation.getAttribute('data-conversation-session')
+          : null;
+        if (sessionId && conversation.contains(sel.anchorNode) && conversation.contains(sel.focusNode)) {
+          const open = (mode) => openSideQuestion(sessionId, selText, mode, zh).catch(() => {
+            showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+          });
+          items.push({ label: zh ? '在侧边栏追问' : 'Ask in the sidebar', run: () => open('quote') });
+          items.push({ label: zh ? '在侧边栏解释' : 'Explain in the sidebar', run: () => open('explain') });
+        }
+      }
+    }
+
+    const link = target.closest('a[href]');
+    if (link && /^https?:/i.test(link.href)) {
+      items.push({ sep: true });
+      items.push({ label: zh ? '复制链接' : 'Copy link', run: () => copy(link.href, zh, { zh: '链接', en: 'link' }) });
+    }
+
+    const pathEl = target.closest('[data-path], [data-files-path], [data-presented-file] [title]');
+    const path = pathEl?.getAttribute('data-path') || pathEl?.getAttribute('data-files-path') || pathEl?.getAttribute('title');
+    if (path && /[\\/]/.test(path)) {
+      items.push({ sep: true });
+      items.push({ label: zh ? '复制文件路径' : 'Copy file path', run: () => copy(path, zh, { zh: '文件路径', en: 'path' }) });
+      items.push({ label: zh ? '在输入框中引用路径' : 'Mention path in composer', run: () => insert(path, 'quote', zh) });
+    }
+
+    const pre = target.closest('pre');
+    if (pre) {
+      const code = (pre.querySelector('code') || pre).innerText.replace(/\n$/, '');
+      if (code) {
+        items.push({ sep: true });
+        items.push({ label: zh ? '复制整段代码' : 'Copy code block', run: () => copy(code, zh, { zh: '代码', en: 'code' }) });
+      }
+    }
+
+    const turn = target.closest('[data-message-bubble], [data-chat-turn], [data-message-role], [data-turn], [data-message-id]');
+    if (turn && !selText) {
+      const txt = turn.innerText.trim();
+      if (txt) {
+        items.push({ sep: true });
+        items.push({ label: zh ? '复制整条消息' : 'Copy message', run: () => copy(txt, zh, { zh: '整条消息', en: 'message' }) });
+        items.push({ label: zh ? '引用整条消息' : 'Quote message', run: () => insert(txt, 'quote', zh) });
+      }
+    }
+
+    while (items.length && items[0].sep) items.shift();
+    return items;
+  }
+
+  function renderMenu(items, x, y) {
+    hideMenu();
+    menuEl = document.createElement('div');
+    menuEl.className = 'op-context-menu';
+    menuEl.setAttribute('data-op-ui', '1');
+    menuEl.setAttribute('role', 'menu');
+    for (const it of items) {
+      if (it.sep) {
+        const hr = document.createElement('div');
+        hr.className = 'op-context-menu-sep';
+        menuEl.appendChild(hr);
+        continue;
+      }
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = 'op-context-menu-item';
+      btn.setAttribute('role', 'menuitem');
+      btn.textContent = it.label;
+      btn.addEventListener('mousedown', (ev) => ev.preventDefault());
+      btn.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        ev.stopPropagation();
+        hideMenu();
+        it.run();
+      });
+      menuEl.appendChild(btn);
+    }
+    document.body.appendChild(menuEl);
+    const r = menuEl.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    menuEl.style.left = `${Math.max(8, Math.min(x, vw - r.width - 8))}px`;
+    menuEl.style.top = `${Math.max(8, y + r.height > vh - 8 ? y - r.height : y)}px`;
+    menuEl.querySelector('button')?.focus({ preventScroll: true });
+  }
+
+  function onContextMenu(ev) {
+    const s = getSettings();
+    if (!s.enabled) return;
+    if (ev.shiftKey) return; // Shift+右键保留系统菜单
+    const target = ev.target instanceof Element ? ev.target : ev.target?.parentElement;
+    if (!target || target.closest(SKIP_SELECTOR)) return;
+    const items = collectItems(target, isZhUi(s), Boolean(s.selectionAskEnabled));
+    if (!items.length) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    renderMenu(items, ev.clientX, ev.clientY);
+  }
+
+  function onPointerDown(ev) {
+    if (menuEl && !menuEl.contains(ev.target)) hideMenu();
+  }
+
+  function onKeyDown(ev) {
+    if (!menuEl) return;
+    if (ev.key === 'Escape') return hideMenu();
+    if (ev.key === 'ArrowDown' || ev.key === 'ArrowUp') {
+      const btns = [...menuEl.querySelectorAll('button')];
+      const i = btns.indexOf(document.activeElement);
+      const next = ev.key === 'ArrowDown' ? (i + 1) % btns.length : (i - 1 + btns.length) % btns.length;
+      btns[next]?.focus();
+      ev.preventDefault();
+    }
+  }
+
+  function start() {
+    document.addEventListener('contextmenu', onContextMenu, true);
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('keydown', onKeyDown, true);
+    window.addEventListener('scroll', hideMenu, true);
+    window.addEventListener('resize', hideMenu);
+    window.addEventListener('blur', hideMenu);
+  }
+
+  function refresh() {
+    const s = getSettings();
+    if (!s.enabled) hideMenu();
+  }
+
+  function dispose() {
+    disposed = true;
+    document.removeEventListener('contextmenu', onContextMenu, true);
+    document.removeEventListener('pointerdown', onPointerDown, true);
+    document.removeEventListener('keydown', onKeyDown, true);
+    window.removeEventListener('scroll', hideMenu, true);
+    window.removeEventListener('resize', hideMenu);
+    window.removeEventListener('blur', hideMenu);
+    hideMenu();
+    if (toastTimer) clearTimeout(toastTimer);
+    toastEl?.remove();
+  }
+
+  return { start, refresh, dispose };
+}
+
+// ── src/side-question.js ──────────────────────────────────────────
+const SIDE_QUESTION_KIND = 'obsidian-prism-question';
+const SIDE_QUESTION_ENTRY = 'dsh-obsidian-prism:side-question';
+const SIDE_QUESTION_SLOT = 'obsidian-prism.side-question.conversation';
+const SIDE_QUESTION_ADDRESS = `dsh-resource://${SIDE_QUESTION_KIND}/session/`;
+
+async function openSelectionInSidebar({ sidebarRight, sessions }, sessionId, text, mode, zh) {
+  const prompt = formatSelectionQuote(text, mode, zh);
+  const isCurrent = () => sidebarRight.commandTarget(null)?.sessionId === sessionId;
+  if (!prompt || !sessionId || !isCurrent()) throw new Error('Side question requires the active conversation');
+  const childId = await sessions.fork({ sessionId, increaseTitle: true });
+  if (!isCurrent()) throw new Error('Active conversation changed');
+  sidebarRight.openResource(`${SIDE_QUESTION_ADDRESS}${encodeURIComponent(childId)}`, {
+    kind: SIDE_QUESTION_KIND,
+    destination: 'sidebar',
+    params: { prompt },
+  });
+}
+
+function readSideQuestionSession(address) {
+  if (!address.startsWith(SIDE_QUESTION_ADDRESS)) return null;
+  const segment = address.slice(SIDE_QUESTION_ADDRESS.length);
+  if (!segment || /[/?#]/.test(segment)) return null;
+  try { return decodeURIComponent(segment); } catch { return null; }
+}
+
+function registerSideQuestion(ctx, React, store) {
+  const { sessions, sidebarRightTabs, resources, slots, conversation } = ctx;
+  const { createElement: h, useEffect, useState } = React;
+  const initialized = new WeakSet();
+
+  function ChatView({ renderSlot }) {
+    return renderSlot('conversation.session', { view: 'chat' });
+  }
+
+  function QuestionConversation({ renderFactorySlot }) {
+    return renderFactorySlot('conversation.content', { variant: 'embedded', phase: 'active', hero: false }, {
+      slots: { views: ChatView },
+    });
+  }
+
+  function QuestionTab({ useTabInfo, useResource, SessionProvider, renderSlot }) {
+    const { tab } = useTabInfo();
+    const resource = useResource(tab.contentId);
+    const prompt = tab.navigation.params?.prompt;
+    const reference = resource.value;
+    const [failed, setFailed] = useState(false);
+
+    useEffect(() => {
+      if (!reference || typeof prompt !== 'string' || !prompt) return;
+      let active = true;
+      reference.ready.then(() => {
+        if (!active || initialized.has(reference)) return;
+        const binding = sessions.binding(reference.sessionId);
+        if (!binding) throw new Error('Sidebar session is not retained');
+        if (conversation.input.requestDraftInitialization(binding, { prompt, whenDraftExists: 'keep' }) === 'blocked') {
+          throw new Error('Sidebar draft could not be initialized');
+        }
+        initialized.add(reference);
+      }).catch(() => { if (active) setFailed(true); });
+      return () => { active = false; };
+    }, [reference, prompt]);
+
+    const zh = isZhUi(store.get());
+    return h('div', { className: 'op-side-question' },
+      (failed || resource.status === 'failed') && h('p', { role: 'status' }, zh ? '侧边追问未能载入。' : 'Could not load the sidebar question.'),
+      reference && h(SessionProvider, { session: reference }, renderSlot(SIDE_QUESTION_SLOT, {})),
+    );
+  }
+
+  ctx.effect(() => resources.register({
+    protocol: SIDE_QUESTION_KIND,
+    async *open(address, { signal }) {
+      const sessionId = readSideQuestionSession(address);
+      if (!sessionId || signal.aborted) return;
+      const reference = sessions.retain(sessionId, { source: 'sidebarChat', signal });
+      const closed = new Promise((resolve) => signal.addEventListener('abort', resolve, { once: true }));
+      try {
+        await reference.ready;
+        if (signal.aborted) return;
+        yield { ok: true, value: reference };
+        await closed;
+      } catch (error) {
+        if (!signal.aborted) yield { ok: false, error };
+      } finally {
+        reference.release();
+      }
+    },
+  }), SIDE_QUESTION_ENTRY);
+  ctx.effect(() => sidebarRightTabs.register({
+    id: SIDE_QUESTION_ENTRY,
+    kind: SIDE_QUESTION_KIND,
+    patterns: [`${SIDE_QUESTION_ADDRESS}**`],
+    canOpen: (address) => Boolean(readSideQuestionSession(address)),
+    title: () => isZhUi(store.get()) ? '侧边追问' : 'Side question',
+  }), `${SIDE_QUESTION_ENTRY}: tab`);
+  slots.inject('sidebar.right.pane.tab', () => slots.register({
+    name: 'sidebar.right.pane.tab',
+    key: SIDE_QUESTION_ENTRY,
+    children: { [SIDE_QUESTION_SLOT]: { kind: 'single', scope: 'session' } },
+  }, QuestionTab));
+  slots.inject(SIDE_QUESTION_SLOT, () => slots.register({ name: SIDE_QUESTION_SLOT }, QuestionConversation));
+}
+
 // ── src/prompt-suggest-controller.js ──────────────────────────────────────────
 // Next-prompt suggestion for dsh-obsidian-prism.
-// After the main conversation finishes a reply, ask Magpie (via the plugin
-// host route) for one likely next prompt and show it as a chip above the
-// composer. Click or Tab (with an empty composer) inserts it; typing hides it.
+// Renders a translucent inline ghost follow-up inside the empty composer:
+// - Shows a context-aware local suggestion at 0ms as soon as a reply finishes.
+// - In default/model mode, prefetches during streaming or silently upgrades
+//   with a fast lightweight model (~0.5s) if the user hasn't typed yet.
+// - In pure-local mode (promptSuggestModel === 'local'), makes zero network
+//   calls and cycles local candidates instantaneously on Shift+Tab.
+// - Persists across session switches, window focus changes, and composer
+//   remounts until the user chooses to type (or accepts via Tab / Esc).
 
 
-const CHIP_ID = 'op-prompt-suggest';
-const MAX_CTX = 2400;
+const LOCAL_ONLY_MODEL = 'local';
+
+const GHOST_ID = 'op-prompt-suggest';
+const GHOST_HOST_ATTR = 'data-op-prompt-ghost';
+const MAX_CTX = 1200;
+const FINISH_SETTLE_MS = 50;
+const SYNC_DEBOUNCE_MS = 120;
+const PREFETCH_POLL_MS = 400;
+const PREFETCH_MIN_CHARS = 32;
+const PREFETCH_REDO_DELTA = 320;
+const PREFETCH_REDO_COOLDOWN_MS = 2500;
+const PREFETCH_FINAL_DELTA = 180;
+const PREFETCH_MAX_PER_TURN = 2;
+const MAX_CACHE_ENTRIES = 30;
+const MAX_TRACKED_SIGS = 50;
 
 function textOf(el) {
   return String(el?.innerText || el?.textContent || '').replace(/\s+\n/g, '\n').trim();
 }
 
+const SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+
+function setBoundedMap(map, key, value, max = MAX_CACHE_ENTRIES) {
+  if (!key) return;
+  if (map.has(key)) map.delete(key);
+  map.set(key, value);
+  while (map.size > max) {
+    const oldest = map.keys().next().value;
+    map.delete(oldest);
+  }
+}
+
+function addBoundedSet(set, key, max = MAX_TRACKED_SIGS) {
+  if (!key) return;
+  if (set.has(key)) set.delete(key);
+  set.add(key);
+  while (set.size > max) {
+    const oldest = set.values().next().value;
+    set.delete(oldest);
+  }
+}
+
+function dedupeSuggestions(items) {
+  const out = [];
+  for (const item of items) {
+    const t = String(item || '').trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+function buildLocalSuggestions({ user = '', assistant = '', zh = true } = {}) {
+  const body = String(assistant || '').trim();
+  const tail = body.slice(-260);
+  const full = `${String(user || '')}\n${body}`;
+
+  if (!zh) {
+    if (/(option\s*[1a]|approach\s*[1a]|which\s+(one|option|approach)|prefer\s+option|1\.\s+.+\n\s*2\.)/i.test(body)) {
+      return dedupeSuggestions([
+        'Go with your recommended option and implement it',
+        'Let us go with Option 1',
+        'Let us go with Option 2',
+        'Explain the tradeoffs between the options briefly',
+      ]);
+    }
+    if (/(refresh|reload|test|verify|passed|built|deployed|fixed|updated|ready)/i.test(tail)) {
+      return dedupeSuggestions([
+        'Looks good, continue to the next step',
+        'Let me test it and adjust a few details',
+        'Double-check for any edge cases we missed',
+        'Summarize the changes for commit',
+      ]);
+    }
+    if (/(error|failed|blocked|bug|issue|root cause|exception)/i.test(tail)) {
+      return dedupeSuggestions([
+        'Fix it with the cleanest approach',
+        'Dig deeper into the root cause first',
+        'Is there a simpler workaround?',
+        'Check if the same issue exists elsewhere',
+      ]);
+    }
+    if (/\?\s*$/.test(tail) || /(would you like|want me to|should i|shall we|confirm)/i.test(tail)) {
+      return dedupeSuggestions([
+        'Yes, go ahead',
+        'Sounds good, do it as you suggested',
+        'Hold on, I want to tweak one detail first',
+        'Skip that for now and move on',
+      ]);
+    }
+    return dedupeSuggestions([
+      'Go ahead and implement this',
+      'Continue to the next step',
+      'Explain this in a bit more detail',
+      'Verify and test the result',
+    ]);
+  }
+
+  // Chinese context-aware instant suggestions
+  const hasChoices =
+    /(方案\s*[1一A]|第一种|第二种|①[\s\S]{1,120}②|哪一种|按哪种|选哪种|二选一|两种改法|两种做法)/.test(body) ||
+    /(^|\n)\s*1[.、]\s*[\s\S]{4,140}\n\s*2[.、]\s*/.test(body);
+  if (hasChoices) {
+    return dedupeSuggestions([
+      '按你推荐的方案直接做',
+      '选第一种，直接动手',
+      '选第二种吧',
+      '再补充说下这两种的区别',
+    ]);
+  }
+
+  const hasRefreshOrTest = /(刷新|重启|试一下|测一测|测完|验三件事|测试|验证通过|全部通过|已改好|改好了|上线|发布)/.test(tail);
+  if (hasRefreshOrTest) {
+    return dedupeSuggestions([
+      '试完了，帮我再微调一下',
+      '没问题，继续下一步',
+      '顺便检查下还有没有漏掉的地方',
+      '把这次改动整理一下提交吧',
+    ]);
+  }
+
+  const hasProblem = /(报错|失败|卡住|原因|排查|冲突|异常|没生效|不显示|消失)/.test(tail);
+  if (hasProblem) {
+    return dedupeSuggestions([
+      '按最稳的办法直接修掉',
+      '顺便把同类地方也一并排查下',
+      '有没有更简单直接的做法？',
+      '继续往下查根因',
+    ]);
+  }
+
+  const asksConfirm = /[？?]\s*$/.test(tail) || /(要不要|是否|可以吗|需要我|你想按|你看|确认一下)/.test(tail);
+  if (asksConfirm) {
+    return dedupeSuggestions([
+      '可以，直接开始做',
+      '按你的建议来就行',
+      '等一下，我先补充个要求',
+      '这个先不动，接着看别的',
+    ]);
+  }
+
+  if (/(计划|方案|思路|对比|结论|建议)/.test(full)) {
+    return dedupeSuggestions([
+      '直接按这个方案落地',
+      '有没有更省事的做法？',
+      '再讲具体一点',
+      '继续下一步',
+    ]);
+  }
+
+  return dedupeSuggestions([
+    '继续下一步',
+    '直接帮我改好',
+    '帮我测试验证一下',
+    '再详细说说',
+  ]);
+}
+
+function isLocalOnlyModel(model) {
+  return String(model || '').trim() === LOCAL_ONLY_MODEL;
+}
+
+function resolveMainConversation(doc) {
+  if (!doc || typeof doc.querySelectorAll !== 'function') return null;
+  if (typeof doc.querySelector === 'function') {
+    const sessions = doc.querySelectorAll('[data-conversation-session]');
+    for (const el of sessions) {
+      if (!el.closest?.(SIDEBAR_EXCLUDED) && !el.hidden && !el.closest?.('[hidden], [inert]')) return el;
+    }
+  }
+  return doc;
+}
+
+function findMainComposerInput(doc = document) {
+  const main = resolveMainConversation(doc);
+  if (main && main !== doc) {
+    const input = findComposerInput(main);
+    if (input) return input;
+  }
+  return findComposerInput(doc);
+}
+
+function extractTurnFromRows(root, turn, { responseOnly = false } = {}) {
+  const rows = Array.from(root.querySelectorAll('[data-chat-flow-kind][data-chat-turn]')).filter(
+    (el) => !el.closest?.(SIDEBAR_EXCLUDED) && el.getAttribute?.('data-chat-turn') === turn,
+  );
+  const userParts = [];
+  const responseParts = [];
+  const fallbackParts = [];
+  for (const el of rows) {
+    const kind = el.getAttribute?.('data-chat-flow-kind');
+    if (kind === 'user') {
+      const txt = textOf(el.querySelector?.('[data-message-bubble]') || el);
+      if (txt) userParts.push(txt);
+    } else if (kind === 'assistant-step' || kind === 'assistant') {
+      const part = el.getAttribute?.('data-chat-group-part');
+      if (part === 'response') {
+        const txt = textOf(el);
+        if (txt) responseParts.push(txt);
+      } else if (!part) {
+        const resp = el.querySelector?.('[data-chat-group-part="response"]');
+        if (resp) {
+          const txt = textOf(resp);
+          if (txt) responseParts.push(txt);
+        } else if (!responseOnly) {
+          const txt = textOf(el);
+          if (txt) fallbackParts.push(txt);
+        }
+      }
+    }
+  }
+  const u = userParts.join('\n\n').slice(-500);
+  const a = (responseParts.length ? responseParts : fallbackParts).join('\n\n').slice(-MAX_CTX);
+  if (!a) return null;
+  return { user: u, assistant: a, sig: String(turn) };
+}
+
+function collectStreamingContext(doc = document) {
+  const root = resolveMainConversation(doc);
+  if (!root) return null;
+  const rows = Array.from(root.querySelectorAll('[data-chat-flow-kind][data-chat-turn]')).filter(
+    (el) => !el.closest?.(SIDEBAR_EXCLUDED),
+  );
+  if (!rows.length) return null;
+  const turn = rows[rows.length - 1].getAttribute?.('data-chat-turn');
+  if (!turn) return null;
+  return extractTurnFromRows(root, turn, { responseOnly: true });
+}
+
 function collectTurnContext(doc = document) {
+  const root = resolveMainConversation(doc);
+  if (!root) return null;
+
+  const tails = Array.from(root.querySelectorAll('[data-turn-tail]')).filter(
+    (el) => !el.closest?.(SIDEBAR_EXCLUDED),
+  );
+  for (let i = tails.length - 1; i >= 0; i -= 1) {
+    const tail = tails[i];
+    const turn = tail.getAttribute?.('data-turn-tail') || tail.getAttribute?.('data-chat-turn');
+    if (turn) {
+      const extracted = extractTurnFromRows(root, turn);
+      if (extracted) return extracted;
+    }
+  }
+
+  const rows = Array.from(root.querySelectorAll('[data-chat-flow-kind][data-chat-turn]')).filter(
+    (el) => !el.closest?.(SIDEBAR_EXCLUDED),
+  );
+  if (rows.length > 0) {
+    const seenTurns = new Set();
+    for (let i = rows.length - 1; i >= 0; i -= 1) {
+      const turn = rows[i].getAttribute?.('data-chat-turn');
+      if (!turn || seenTurns.has(turn)) continue;
+      seenTurns.add(turn);
+      const extracted = extractTurnFromRows(root, turn);
+      if (extracted) return extracted;
+    }
+  }
+
   const pick = (sel) => {
-    const list = doc.querySelectorAll(sel);
+    const list = Array.from(root.querySelectorAll(sel)).filter((el) => !el.closest?.(SIDEBAR_EXCLUDED));
     return list.length ? list[list.length - 1] : null;
   };
   const user = pick('[data-message-role="user"], [data-role="user"], [data-turn-role="user"], [data-author="user"]');
   const assistant = pick('[data-message-role="assistant"], [data-role="assistant"], [data-turn-role="assistant"], [data-author="assistant"]');
-  const u = textOf(user).slice(-MAX_CTX / 3);
+  const u = textOf(user).slice(-500);
   const a = textOf(assistant).slice(-MAX_CTX);
   if (!a) return null;
   return { user: u, assistant: a, sig: `${u.length}:${a.length}:${a.slice(-40)}` };
@@ -15779,117 +16575,706 @@ function composerIsEmpty(input) {
   return !String(v || '').replace(/\u200B/g, '').trim();
 }
 
+function isDocumentStreaming() {
+  return document.documentElement?.getAttribute?.('data-op-streaming') === '1';
+}
+
 function createPromptSuggestController({ getSettings }) {
   let lastSig = '';
+  let currentSig = '';
+  let lastModel = getSettings()?.promptSuggestModel || '';
   let reqSeq = 0;
   let suggestion = '';
+  let seen = [];
+  let loadingNext = false;
+  let hostEl = null;
+  let pendingTimer = null;
+  let syncTimer = null;
+  let streamPollTimer = null;
+  let isStreaming = false;
+  let prefetched = null;
+  let prefetchCount = 0;
+  let lastPrefetchAt = 0;
   let onKey = null;
   let onInput = null;
+  let onComposition = null;
+  let onVisibility = null;
+  let onWindowFocus = null;
+  let mo = null;
+
+  const cacheBySig = new Map();
+  const dismissedSigs = new Set();
+  const failedSigs = new Set();
+  const inflightSigs = new Set();
 
   const enabled = () => {
     const s = getSettings();
     return Boolean(s.enabled && s.promptSuggestEnabled);
   };
 
-  function hide() {
+  function makeSigKey(sessionId, turnSig, model) {
+    return `${sessionId}:${turnSig}:${model}`;
+  }
+
+  function clearPendingTimer() {
+    if (pendingTimer) {
+      clearTimeout(pendingTimer);
+      pendingTimer = null;
+    }
+  }
+
+  function clearSyncTimer() {
+    if (syncTimer) {
+      clearTimeout(syncTimer);
+      syncTimer = null;
+    }
+  }
+
+  function clearStreamPoll() {
+    if (streamPollTimer) {
+      clearInterval(streamPollTimer);
+      streamPollTimer = null;
+    }
+  }
+
+  function resetPrefetch() {
+    prefetched = null;
+    prefetchCount = 0;
+    lastPrefetchAt = 0;
+  }
+
+  function clearHostMark() {
+    if (hostEl) {
+      hostEl.removeAttribute?.(GHOST_HOST_ATTR);
+      hostEl = null;
+    }
+    const stale = document.querySelectorAll?.(`[${GHOST_HOST_ATTR}]`) || [];
+    for (const el of stale) el.removeAttribute?.(GHOST_HOST_ATTR);
+  }
+
+  function hide({ dismiss = false } = {}) {
+    if (dismiss && currentSig) {
+      addBoundedSet(dismissedSigs, currentSig);
+    }
     suggestion = '';
-    document.getElementById(CHIP_ID)?.remove();
+    currentSig = '';
+    loadingNext = false;
+    document.getElementById?.(GHOST_ID)?.remove();
+    clearHostMark();
   }
 
   function accept() {
     if (!suggestion) return false;
-    const input = findComposerInput(document);
+    const input = findMainComposerInput(document);
+    if (!input) return false;
     const text = suggestion;
-    hide();
+    hide({ dismiss: true });
+    input.focus?.();
     return insertTextIntoComposer(input, text);
   }
 
-  function show(text) {
-    const input = findComposerInput(document);
-    const card = input?.closest('[data-composer-card]') || input?.parentElement;
-    if (!card || !composerIsEmpty(input)) return;
+  function renderGhost(text, sigKey = currentSig) {
+    const input = findMainComposerInput(document);
+    const host = input?.parentElement;
+    if (!input || !host || !composerIsEmpty(input)) return false;
     suggestion = text;
-    let chip = document.getElementById(CHIP_ID);
-    if (!chip) {
-      chip = document.createElement('button');
-      chip.id = CHIP_ID;
-      chip.type = 'button';
-      chip.className = 'op-prompt-suggest';
-      chip.setAttribute('translate', 'no');
-      chip.addEventListener('mousedown', (ev) => ev.preventDefault());
-      chip.addEventListener('click', () => accept());
-      card.parentElement?.insertBefore(chip, card);
+    if (sigKey) currentSig = sigKey;
+
+    if (hostEl && hostEl !== host) clearHostMark();
+    hostEl = host;
+    host.setAttribute?.(GHOST_HOST_ATTR, '1');
+
+    let ghost = document.getElementById?.(GHOST_ID);
+    if (ghost && ghost.parentElement !== host) {
+      ghost.remove();
+      ghost = null;
     }
+    if (!ghost) {
+      ghost = document.createElement('div');
+      ghost.id = GHOST_ID;
+      ghost.className = 'op-prompt-suggest';
+      ghost.setAttribute('data-op-ui', '1');
+      ghost.setAttribute('translate', 'no');
+      ghost.setAttribute('aria-hidden', 'true');
+      host.appendChild(ghost);
+    }
+
     const zh = isZhUi(getSettings());
-    chip.title = zh ? '点击或按 Tab 使用这条建议' : 'Click or press Tab to use';
-    chip.textContent = '';
-    const label = document.createElement('span');
-    label.className = 'op-prompt-suggest-label';
-    label.textContent = zh ? '下一步' : 'Next';
+    ghost.textContent = '';
+
     const body = document.createElement('span');
     body.className = 'op-prompt-suggest-text';
     body.textContent = text;
-    const key = document.createElement('kbd');
-    key.textContent = 'Tab';
-    chip.append(label, body, key);
+
+    const actions = document.createElement('span');
+    actions.className = 'op-prompt-suggest-actions';
+
+    const acceptBtn = document.createElement('button');
+    acceptBtn.type = 'button';
+    acceptBtn.className = 'op-prompt-suggest-kbd';
+    acceptBtn.tabIndex = -1;
+    acceptBtn.textContent = 'Tab';
+    acceptBtn.title = zh ? '按 Tab 或点击填入输入框' : 'Press or click Tab to insert';
+    acceptBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+    acceptBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      accept();
+    });
+
+    const cycleBtn = document.createElement('button');
+    cycleBtn.type = 'button';
+    cycleBtn.className = 'op-prompt-suggest-next';
+    cycleBtn.tabIndex = -1;
+    cycleBtn.disabled = loadingNext;
+    cycleBtn.setAttribute('data-loading', loadingNext ? '1' : '0');
+    cycleBtn.textContent = '↻';
+    cycleBtn.title = zh ? '换一条建议 (Shift+Tab)' : 'Try another suggestion (Shift+Tab)';
+    cycleBtn.addEventListener('mousedown', (ev) => ev.preventDefault());
+    cycleBtn.addEventListener('click', (ev) => {
+      ev.preventDefault();
+      ev.stopPropagation();
+      cycle();
+    });
+
+    actions.append(acceptBtn, cycleBtn);
+    ghost.append(body, actions);
+    return true;
   }
 
-  async function request() {
-    const ctx = collectTurnContext(document);
-    if (!ctx || ctx.sig === lastSig) return;
-    lastSig = ctx.sig;
+  function saveSuggestion(sigKey, text, seenList, { source = 'model', localPool = null, localIdx = 0 } = {}) {
+    if (!sigKey || !text) return;
+    if (source === 'model') failedSigs.delete(sigKey);
+    const prev = cacheBySig.get(sigKey);
+    const list = Array.isArray(seenList) && seenList.length
+      ? seenList.slice(-5)
+      : [text];
+    setBoundedMap(cacheBySig, sigKey, {
+      text,
+      seen: list,
+      source,
+      localPool: localPool || prev?.localPool || null,
+      localIdx: typeof localIdx === 'number' ? localIdx : (prev?.localIdx || 0),
+    });
+  }
+
+  function showInstantLocal(ctx, sessionId, model, s) {
+    if (!ctx) return '';
+    const sigKey = makeSigKey(sessionId, ctx.sig, model);
+    if (dismissedSigs.has(sigKey)) return sigKey;
+    const existing = cacheBySig.get(sigKey);
+    if (existing?.text) {
+      lastSig = sigKey;
+      seen = existing.source === 'model' ? [...existing.seen] : [];
+      renderGhost(existing.text, sigKey);
+      return sigKey;
+    }
+    const pool = buildLocalSuggestions({ user: ctx.user, assistant: ctx.assistant, zh: isZhUi(s) });
+    const first = pool[0] || '';
+    if (!first) return sigKey;
+    lastSig = sigKey;
+    seen = [];
+    saveSuggestion(sigKey, first, [first], { source: 'local', localPool: pool, localIdx: 0 });
+    renderGhost(first, sigKey);
+    return sigKey;
+  }
+
+  function cycleLocalFallback(sigKey, ctx, s) {
+    const prev = cacheBySig.get(sigKey);
+    const pool = prev?.localPool?.length
+      ? prev.localPool
+      : buildLocalSuggestions({ user: ctx?.user || '', assistant: ctx?.assistant || '', zh: isZhUi(s) });
+    if (!pool.length) return false;
+    const nextIdx = prev ? ((prev.localIdx ?? 0) + 1) % pool.length : 0;
+    const nextText = pool[nextIdx];
+    saveSuggestion(sigKey, nextText, [nextText], { source: 'local', localPool: pool, localIdx: nextIdx });
+    lastSig = sigKey;
+    renderGhost(nextText, sigKey);
+    return true;
+  }
+
+  async function fetchSuggestionText({ user, assistant, zh, model, exclude = [] }) {
+    const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({
+        user,
+        assistant,
+        zh,
+        ...(model ? { model } : {}),
+        ...(exclude.length ? { exclude } : {}),
+      }),
+    });
+    const j = await res.json();
+    const next = typeof j?.text === 'string' ? j.text.trim() : '';
+    return j?.ok && next ? next : '';
+  }
+
+  async function request({ force = false, silent = false } = {}) {
+    const s = getSettings();
+    const mainConv = resolveMainConversation(document);
+    const ctx = collectTurnContext(mainConv || document);
+    if (!ctx) return;
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const model = s.promptSuggestModel || '';
+    const sigKey = makeSigKey(sessionId, ctx.sig, model);
+    if (!force && dismissedSigs.has(sigKey)) return;
+
+    if (isLocalOnlyModel(model)) {
+      if (force) cycleLocalFallback(sigKey, ctx, s);
+      else showInstantLocal(ctx, sessionId, model, s);
+      return;
+    }
+
+    const existing = cacheBySig.get(sigKey);
+    if (!force && !silent) {
+      if (existing?.source === 'model' && existing.text) {
+        lastSig = sigKey;
+        seen = [...existing.seen];
+        renderGhost(existing.text, sigKey);
+        return;
+      }
+      if (sigKey === lastSig && inflightSigs.has(sigKey)) return;
+    }
+
+    if (sigKey !== lastSig) {
+      lastSig = sigKey;
+      seen = existing?.source === 'model' && existing.seen ? [...existing.seen] : [];
+    } else if (existing?.source !== 'model' && !seen.length) {
+      seen = [];
+    }
+
     const seq = ++reqSeq;
+    const exclude = force ? [...seen] : [];
+    inflightSigs.add(sigKey);
+    if (force && suggestion && !silent) {
+      loadingNext = true;
+      renderGhost(suggestion, sigKey);
+    }
     try {
-      const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', {
-        method: 'POST',
-        headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ user: ctx.user, assistant: ctx.assistant, zh: isZhUi(getSettings()) }),
+      const next = await fetchSuggestionText({
+        user: ctx.user,
+        assistant: ctx.assistant,
+        zh: isZhUi(s),
+        model,
+        exclude,
       });
-      const j = await res.json();
-      if (seq !== reqSeq || !enabled()) return;
-      if (j?.ok && typeof j.text === 'string' && j.text.trim()) show(j.text.trim());
-    } catch { /* suggestion is optional */ }
+      inflightSigs.delete(sigKey);
+      if (seq !== reqSeq || !enabled() || isStreaming) return;
+      loadingNext = false;
+      if (next) {
+        if (!seen.includes(next)) seen = [...seen.slice(-4), next];
+        saveSuggestion(sigKey, next, seen, { source: 'model' });
+        if (!dismissedSigs.has(sigKey)) {
+          renderGhost(next, sigKey);
+        }
+      } else {
+        if (existing?.source !== 'model') addBoundedSet(failedSigs, sigKey);
+        if (force) {
+          cycleLocalFallback(sigKey, ctx, s);
+        } else if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
+          renderGhost(suggestion, sigKey);
+        }
+      }
+    } catch {
+      inflightSigs.delete(sigKey);
+      if (existing?.source !== 'model') addBoundedSet(failedSigs, sigKey);
+      if (seq === reqSeq) {
+        loadingNext = false;
+        if (force) {
+          cycleLocalFallback(sigKey, ctx, s);
+        } else if (suggestion && !silent && !dismissedSigs.has(sigKey)) {
+          renderGhost(suggestion, sigKey);
+        }
+      }
+    }
+  }
+
+  function pollStreamPrefetch() {
+    if (!isStreaming || !enabled() || prefetchCount >= PREFETCH_MAX_PER_TURN) return;
+    const s = getSettings();
+    const model = s.promptSuggestModel || '';
+    if (isLocalOnlyModel(model)) return;
+
+    const mainConv = resolveMainConversation(document);
+    const live = collectStreamingContext(mainConv || document);
+    if (!live || live.assistant.length < PREFETCH_MIN_CHARS) return;
+
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const now = Date.now();
+    if (prefetched) {
+      if (prefetched.inflight) return;
+      if (live.assistant.length - prefetched.assistantLen < PREFETCH_REDO_DELTA) return;
+      if (now - lastPrefetchAt < PREFETCH_REDO_COOLDOWN_MS) return;
+    }
+
+    prefetchCount += 1;
+    lastPrefetchAt = now;
+    const seq = ++reqSeq;
+    const entry = {
+      seq,
+      sessionId,
+      model,
+      turn: live.sig,
+      assistantLen: live.assistant.length,
+      text: prefetched?.text || '',
+      inflight: true,
+      showOnResolve: false,
+    };
+    prefetched = entry;
+
+    fetchSuggestionText({
+      user: live.user,
+      assistant: live.assistant,
+      zh: isZhUi(s),
+      model,
+    })
+      .then((next) => {
+        if (entry.seq !== reqSeq) return;
+        entry.inflight = false;
+        if (next) entry.text = next;
+        const sigKey = makeSigKey(entry.sessionId, entry.turn, entry.model);
+        if (entry.text) {
+          saveSuggestion(sigKey, entry.text, [entry.text], { source: 'model' });
+        }
+        if (entry.showOnResolve && !isStreaming && enabled()) {
+          if (entry.text && !dismissedSigs.has(sigKey)) {
+            seen = [entry.text];
+            lastSig = sigKey;
+            renderGhost(entry.text, sigKey);
+          } else if (!entry.text) {
+            request({ force: false, silent: true });
+          }
+        }
+      })
+      .catch(() => {
+        if (entry.seq !== reqSeq) return;
+        entry.inflight = false;
+        if (entry.showOnResolve && !isStreaming && enabled()) {
+          request({ force: false, silent: true });
+        }
+      });
+  }
+
+  function sync() {
+    clearSyncTimer();
+    if (!enabled()) {
+      hide();
+      return;
+    }
+    if (isStreaming || isDocumentStreaming()) return;
+
+    const mainConv = resolveMainConversation(document);
+    const input = findMainComposerInput(document);
+    if (!input) {
+      if (suggestion) hide();
+      return;
+    }
+    if (!composerIsEmpty(input)) {
+      if (suggestion) hide();
+      return;
+    }
+    const ctx = collectTurnContext(mainConv || document);
+    if (!ctx) {
+      if (suggestion) hide();
+      return;
+    }
+
+    const s = getSettings();
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const model = s.promptSuggestModel || '';
+    const sigKey = makeSigKey(sessionId, ctx.sig, model);
+
+    if (dismissedSigs.has(sigKey)) {
+      if (suggestion) hide();
+      return;
+    }
+
+    const cached = cacheBySig.get(sigKey);
+    if (cached?.text) {
+      const host = input.parentElement;
+      const ghost = document.getElementById?.(GHOST_ID);
+      const alreadyRendered = Boolean(
+        ghost &&
+        host &&
+        ghost.parentElement === host &&
+        host.getAttribute?.(GHOST_HOST_ATTR) === '1' &&
+        currentSig === sigKey &&
+        suggestion === cached.text &&
+        !loadingNext
+      );
+      if (!alreadyRendered) {
+        lastSig = sigKey;
+        seen = cached.source === 'model' ? [...cached.seen] : [];
+        renderGhost(cached.text, sigKey);
+      }
+      // If only local placeholder is cached in hybrid mode, upgrade once in background
+      if (cached.source !== 'model' && !isLocalOnlyModel(model) && !inflightSigs.has(sigKey) && !failedSigs.has(sigKey)) {
+        request({ silent: true });
+      }
+      return;
+    }
+
+    // Active session changed to a turn we have not generated yet:
+    // Show instant 0ms local suggestion first, then upgrade in background if not local-only.
+    if (suggestion && currentSig && currentSig !== sigKey) {
+      hide();
+    }
+    showInstantLocal(ctx, sessionId, model, s);
+    if (!isLocalOnlyModel(model) && !inflightSigs.has(sigKey) && !failedSigs.has(sigKey)) {
+      request({ silent: true });
+    }
+  }
+
+  function scheduleSync() {
+    if (!enabled() || isStreaming || syncTimer) return;
+    syncTimer = setTimeout(() => {
+      syncTimer = null;
+      sync();
+    }, SYNC_DEBOUNCE_MS);
+  }
+
+  function cycle() {
+    if (!enabled() || loadingNext) return;
+    request({ force: true });
   }
 
   function notifyStreamingChange(streaming) {
-    if (streaming) { reqSeq += 1; hide(); return; }
-    if (enabled()) setTimeout(() => { if (enabled()) request(); }, 800);
+    clearPendingTimer();
+    clearSyncTimer();
+    clearStreamPoll();
+    if (streaming) {
+      isStreaming = true;
+      reqSeq += 1;
+      resetPrefetch();
+      hide();
+      if (enabled() && !isLocalOnlyModel(getSettings()?.promptSuggestModel || '')) {
+        streamPollTimer = setInterval(pollStreamPrefetch, PREFETCH_POLL_MS);
+      }
+      return;
+    }
+
+    isStreaming = false;
+    if (!enabled()) return;
+
+    const s = getSettings();
+    const mainConv = resolveMainConversation(document);
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const model = s.promptSuggestModel || '';
+
+    // Pure-local mode: 0ms instant local display, zero network requests
+    if (isLocalOnlyModel(model)) {
+      const ctx = collectTurnContext(mainConv || document);
+      if (ctx) {
+        showInstantLocal(ctx, sessionId, model, s);
+      } else {
+        pendingTimer = setTimeout(() => {
+          pendingTimer = null;
+          if (enabled() && !isStreaming) sync();
+        }, FINISH_SETTLE_MS);
+      }
+      return;
+    }
+
+    const match = prefetched && prefetched.sessionId === sessionId && prefetched.model === model ? prefetched : null;
+
+    if (match && match.text) {
+      // Instant 0ms display from speculative model prefetch
+      const sigKey = makeSigKey(sessionId, match.turn, model);
+      seen = [match.text];
+      lastSig = sigKey;
+      saveSuggestion(sigKey, match.text, seen, { source: 'model' });
+      if (!dismissedSigs.has(sigKey)) {
+        renderGhost(match.text, sigKey);
+      }
+      const prefetchedLen = match.assistantLen;
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        if (!enabled() || isStreaming) return;
+        const latestConv = resolveMainConversation(document);
+        const ctx = collectTurnContext(latestConv || document);
+        if (!ctx) return;
+        const latestSession = latestConv?.getAttribute?.('data-conversation-session') || '';
+        const latestSig = makeSigKey(latestSession, ctx.sig, model);
+        lastSig = latestSig;
+        if (latestSig !== sigKey) {
+          saveSuggestion(latestSig, match.text, seen, { source: 'model' });
+          if (!dismissedSigs.has(latestSig)) renderGhost(match.text, latestSig);
+        }
+        if (ctx.assistant.length - prefetchedLen > PREFETCH_FINAL_DELTA && !dismissedSigs.has(latestSig)) {
+          request({ force: true, silent: true });
+        }
+      }, FINISH_SETTLE_MS);
+      return;
+    }
+
+    // Show local instant suggestion at 0ms while model prefetch resolves or settles
+    const immediateCtx = collectTurnContext(mainConv || document);
+    if (immediateCtx) {
+      showInstantLocal(immediateCtx, sessionId, model, s);
+    }
+
+    if (match && match.inflight) {
+      match.showOnResolve = true;
+      const prefetchedLen = match.assistantLen;
+      pendingTimer = setTimeout(() => {
+        pendingTimer = null;
+        if (!enabled() || isStreaming) return;
+        const latestConv = resolveMainConversation(document);
+        const ctx = collectTurnContext(latestConv || document);
+        if (!ctx) return;
+        const latestSession = latestConv?.getAttribute?.('data-conversation-session') || '';
+        const latestSig = makeSigKey(latestSession, ctx.sig, model);
+        lastSig = latestSig;
+        if (!match.inflight && ctx.assistant.length - prefetchedLen > PREFETCH_FINAL_DELTA && !dismissedSigs.has(latestSig)) {
+          request({ force: true, silent: true });
+        }
+      }, FINISH_SETTLE_MS);
+      return;
+    }
+
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null;
+      if (enabled() && !isStreaming) request();
+    }, FINISH_SETTLE_MS);
+  }
+
+  function isTargetInComposer(input, target) {
+    if (!input || !target) return false;
+    if (target === input || input.contains?.(target)) return true;
+    const card = input.closest?.('[data-composer-card]');
+    return Boolean(card && card.contains?.(target));
+  }
+
+  function resolveActiveSigKey() {
+    if (currentSig) return currentSig;
+    const s = getSettings();
+    const mainConv = resolveMainConversation(document);
+    const ctx = collectTurnContext(mainConv || document);
+    if (!ctx) return '';
+    const sessionId = mainConv?.getAttribute?.('data-conversation-session') || '';
+    const model = s.promptSuggestModel || '';
+    return makeSigKey(sessionId, ctx.sig, model);
+  }
+
+  function dismissActiveTurn() {
+    const sig = resolveActiveSigKey();
+    if (sig) addBoundedSet(dismissedSigs, sig);
+    hide({ dismiss: true });
   }
 
   function attach() {
     if (onKey) return;
     onKey = (ev) => {
-      if (!suggestion || ev.key !== 'Tab' || ev.shiftKey || ev.altKey || ev.metaKey || ev.ctrlKey) return;
-      const input = findComposerInput(document);
-      if (!input || !input.contains(ev.target) && ev.target !== input) return;
+      if (!suggestion) return;
+      const input = findMainComposerInput(document);
+      if (ev.key === 'Escape') {
+        if (input && isTargetInComposer(input, ev.target)) {
+          dismissActiveTurn();
+        }
+        return;
+      }
+      if (ev.key !== 'Tab' || ev.altKey || ev.metaKey || ev.ctrlKey) return;
+      if (!input || !isTargetInComposer(input, ev.target)) return;
       if (!composerIsEmpty(input)) return;
       ev.preventDefault();
       ev.stopPropagation();
-      accept();
+      if (ev.shiftKey) cycle();
+      else accept();
     };
     onInput = (ev) => {
-      if (!suggestion) return;
-      const input = findComposerInput(document);
-      if (input && (input === ev.target || input.contains(ev.target)) && !composerIsEmpty(input)) hide();
+      const input = findMainComposerInput(document);
+      if (input && (input === ev.target || input.contains?.(ev.target)) && !composerIsEmpty(input)) {
+        dismissActiveTurn();
+      }
+    };
+    onComposition = (ev) => {
+      const input = findMainComposerInput(document);
+      if (input && (input === ev.target || input.contains?.(ev.target))) {
+        dismissActiveTurn();
+      }
+    };
+    onVisibility = () => {
+      if (!document.hidden) scheduleSync();
+    };
+    onWindowFocus = () => {
+      scheduleSync();
     };
     document.addEventListener('keydown', onKey, true);
     document.addEventListener('input', onInput, true);
+    document.addEventListener('compositionstart', onComposition, true);
+    document.addEventListener('visibilitychange', onVisibility);
+    if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
+      window.addEventListener('focus', onWindowFocus);
+    }
+    if (typeof MutationObserver !== 'undefined' && document.body) {
+      mo = new MutationObserver((muts) => {
+        if (!enabled() || isStreaming) return;
+        for (const m of muts) {
+          if (m.type === 'attributes' && m.attributeName === GHOST_HOST_ATTR) continue;
+          const target = m.target;
+          if (target && typeof target.closest === 'function') {
+            if (target.closest('[data-op-ui="1"], [data-op-mascot-stage="1"], .op-drawer')) continue;
+          }
+          scheduleSync();
+          break;
+        }
+      });
+      mo.observe(document.body, {
+        childList: true,
+        subtree: true,
+        attributes: true,
+        attributeFilter: ['data-conversation-session', 'hidden', 'inert'],
+      });
+      scheduleSync();
+    }
   }
 
   function detach() {
+    clearPendingTimer();
+    clearSyncTimer();
+    clearStreamPoll();
+    isStreaming = false;
+    resetPrefetch();
+    reqSeq += 1;
+    if (mo) {
+      mo.disconnect();
+      mo = null;
+    }
     if (onKey) document.removeEventListener('keydown', onKey, true);
     if (onInput) document.removeEventListener('input', onInput, true);
+    if (onComposition) document.removeEventListener('compositionstart', onComposition, true);
+    if (onVisibility) document.removeEventListener('visibilitychange', onVisibility);
+    if (onWindowFocus && typeof window !== 'undefined' && typeof window.removeEventListener === 'function') {
+      window.removeEventListener('focus', onWindowFocus);
+    }
     onKey = null;
     onInput = null;
+    onComposition = null;
+    onVisibility = null;
+    onWindowFocus = null;
     hide();
   }
 
   function refresh() {
-    if (enabled()) attach();
-    else detach();
+    const nextModel = getSettings()?.promptSuggestModel || '';
+    const modelChanged = nextModel !== lastModel;
+    if (modelChanged) {
+      lastModel = nextModel;
+      lastSig = '';
+      seen = [];
+      resetPrefetch();
+      hide();
+    }
+    if (enabled()) {
+      attach();
+      if (modelChanged && document.body) scheduleSync();
+    } else {
+      detach();
+    }
   }
 
-  return { start: refresh, refresh, notifyStreamingChange, dispose: detach };
+  return { start: refresh, refresh, notifyStreamingChange, sync, dispose: detach };
 }
 
 // ── src/choreography-controller.js ──────────────────────────────────────────
@@ -16059,8 +17444,40 @@ const PRISM_RIM_PALETTES = {
   },
 };
 
+const PRISM_RIM_OUTSET = 1.5;
+
+function computePrismRimLayout(cs, rimWidth = 1.75) {
+  const num = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const bt = num(cs?.borderTopWidth);
+  const br = num(cs?.borderRightWidth);
+  const bb = num(cs?.borderBottomWidth);
+  const bl = num(cs?.borderLeftWidth);
+  const out = PRISM_RIM_OUTSET;
+  const corner = (raw) => {
+    const r = num(raw);
+    return r > 0 ? `${r + out}px` : '0px';
+  };
+  return {
+    outset: out,
+    top: `${-(bt + out)}px`,
+    right: `${-(br + out)}px`,
+    bottom: `${-(bb + out)}px`,
+    left: `${-(bl + out)}px`,
+    padding: `${rimWidth}px`,
+    borderTopLeftRadius: corner(cs?.borderTopLeftRadius),
+    borderTopRightRadius: corner(cs?.borderTopRightRadius),
+    borderBottomRightRadius: corner(cs?.borderBottomRightRadius),
+    borderBottomLeftRadius: corner(cs?.borderBottomLeftRadius),
+    cornerShape: typeof cs?.cornerShape === 'string' && cs.cornerShape ? cs.cornerShape : '',
+  };
+}
+
 function createPrismRimController({ getSettings }) {
   let hostCard = null;
+  let shell = null;
   let canvas = null;
   let ctx = null;
   let rafId = 0;
@@ -16073,6 +17490,7 @@ function createPrismRimController({ getSettings }) {
   let orbitAngle = 0;
   let completeFlashUntil = 0;
   let lastStreaming = false;
+  let lastLayoutKey = '';
 
   const reducedMq = typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -16106,40 +17524,60 @@ function createPrismRimController({ getSettings }) {
       ro.disconnect();
       ro = null;
     }
-    if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    if (shell && shell.parentNode) shell.parentNode.removeChild(shell);
+    else if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    shell = null;
     canvas = null;
     ctx = null;
     hostCard = null;
+    lastLayoutKey = '';
+  }
+
+  function syncShellGeometry(cs, rimWidth) {
+    if (!shell || !cs) return;
+    const layout = computePrismRimLayout(cs, rimWidth);
+    const key = [
+      layout.top, layout.right, layout.bottom, layout.left,
+      layout.padding,
+      layout.borderTopLeftRadius, layout.borderTopRightRadius,
+      layout.borderBottomRightRadius, layout.borderBottomLeftRadius,
+      layout.cornerShape,
+    ].join('|');
+    if (key === lastLayoutKey) return;
+    lastLayoutKey = key;
+    shell.style.top = layout.top;
+    shell.style.right = layout.right;
+    shell.style.bottom = layout.bottom;
+    shell.style.left = layout.left;
+    shell.style.padding = layout.padding;
+    shell.style.borderTopLeftRadius = layout.borderTopLeftRadius;
+    shell.style.borderTopRightRadius = layout.borderTopRightRadius;
+    shell.style.borderBottomRightRadius = layout.borderBottomRightRadius;
+    shell.style.borderBottomLeftRadius = layout.borderBottomLeftRadius;
+    if (layout.cornerShape) {
+      shell.style.cornerShape = layout.cornerShape;
+    } else if (shell.style.cornerShape) {
+      shell.style.cornerShape = '';
+    }
   }
 
   function resizeCanvas() {
     if (!hostCard || !canvas) return;
-    const rect = hostCard.getBoundingClientRect();
+    const rect = (shell && shell.getBoundingClientRect) ? shell.getBoundingClientRect() : hostCard.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.max(1, Math.round(rect.width + 4));
-    const h = Math.max(1, Math.round(rect.height + 4));
-    const pw = Math.round(w * dpr);
-    const ph = Math.round(h * dpr);
+    const w = Math.max(1, rect.width || (hostCard.getBoundingClientRect().width + PRISM_RIM_OUTSET * 2));
+    const h = Math.max(1, rect.height || (hostCard.getBoundingClientRect().height + PRISM_RIM_OUTSET * 2));
+    const pw = Math.max(1, Math.round(w * dpr));
+    const ph = Math.max(1, Math.round(h * dpr));
     if (canvas.width !== pw || canvas.height !== ph) {
       canvas.width = pw;
       canvas.height = ph;
     }
   }
 
-  function roundedRectPath(c, x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    c.beginPath();
-    c.moveTo(x + rr, y);
-    c.arcTo(x + w, y, x + w, y + h, rr);
-    c.arcTo(x + w, y + h, x, y + h, rr);
-    c.arcTo(x, y + h, x, y, rr);
-    c.arcTo(x, y, x + w, y, rr);
-    c.closePath();
-  }
-
   function drawFrame(now) {
     rafId = 0;
-    if (disposed || document.hidden || !isRimActive() || !hostCard || !hostCard.isConnected || !canvas || !ctx) {
+    if (disposed || document.hidden || !isRimActive() || !hostCard || !hostCard.isConnected || !shell || !shell.isConnected || !canvas || !ctx) {
       if (ctx && canvas && canvas.width > 0) ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
@@ -16148,21 +17586,23 @@ function createPrismRimController({ getSettings }) {
     const rect = hostCard.getBoundingClientRect();
     if (rect.width < 20 || rect.height < 20) return;
 
-    resizeCanvas();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-    const cs = getComputedStyle(hostCard);
-    const radius = (parseFloat(cs.borderTopLeftRadius) || 18) + 1;
-
     const streaming = document.documentElement.getAttribute('data-op-streaming') === '1';
     const focused = hostCard.contains(document.activeElement);
     const flashRemaining = Math.max(0, completeFlashUntil - now);
     const flashAlpha = flashRemaining > 0 ? Math.sin((flashRemaining / 950) * Math.PI) : 0;
 
+    const rimWidth = flashAlpha > 0.01 ? 2.4 : (streaming || s.ambientGlow === 'rich' ? 2.1 : 1.75);
+    const cs = getComputedStyle(hostCard);
+    syncShellGeometry(cs, rimWidth);
+    resizeCanvas();
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+
     // Proximity to composer card
-    const localX = pointer.x - rect.left + 2;
-    const localY = pointer.y - rect.top + 2;
+    const localX = pointer.x - rect.left + PRISM_RIM_OUTSET;
+    const localY = pointer.y - rect.top + PRISM_RIM_OUTSET;
     const nearX = Math.max(0, rect.left - pointer.x, pointer.x - rect.right);
     const nearY = Math.max(0, rect.top - pointer.y, pointer.y - rect.bottom);
     const dist = Math.hypot(nearX, nearY);
@@ -16194,7 +17634,7 @@ function createPrismRimController({ getSettings }) {
     const { colors, isDark } = resolvePaletteColors(s);
     const richBoost = s.ambientGlow === 'rich' ? 1.2 : 0.92;
 
-    // 1. Pointer specular prism hotspot along border
+    // 1. Pointer specular prism hotspot along border (clipped cleanly by .op-prism-rim-shell CSS mask)
     if (proximity > 0.01 || smooth.strength > 0.04) {
       const gx = proximity > 0.01 ? smooth.x : w * 0.5;
       const gy = proximity > 0.01 ? smooth.y : 0;
@@ -16207,10 +17647,8 @@ function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = Math.min(0.92, smooth.strength * (isDark ? 0.75 : 0.62) * richBoost);
-      ctx.lineWidth = s.ambientGlow === 'rich' ? 2.1 : 1.5;
-      ctx.strokeStyle = rad;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = rad;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -16228,10 +17666,8 @@ function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = isDark ? 0.82 : 0.68;
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = sweep;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = sweep;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -16246,10 +17682,8 @@ function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = flashAlpha * (isDark ? 0.85 : 0.72);
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = glint;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = glint;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -16277,23 +17711,32 @@ function createPrismRimController({ getSettings }) {
       unmount();
       return;
     }
-    const card = document.querySelector('[data-composer-card]');
+    const card = findMainComposerCard(document);
     if (!card || !card.isConnected) {
       unmount();
       return;
     }
-    if (hostCard !== card || !canvas || !canvas.isConnected) {
+    if (hostCard !== card || !shell || !shell.isConnected || !canvas || !canvas.isConnected) {
       unmount();
       hostCard = card;
+      shell = document.createElement('div');
+      shell.className = 'op-prism-rim-shell';
+      shell.setAttribute('data-op-ui', '1');
+      shell.setAttribute('aria-hidden', 'true');
       canvas = document.createElement('canvas');
       canvas.className = 'op-prism-rim-canvas';
       canvas.setAttribute('data-op-ui', '1');
       canvas.setAttribute('aria-hidden', 'true');
-      card.appendChild(canvas);
+      shell.appendChild(canvas);
+      card.appendChild(shell);
       ctx = canvas.getContext('2d');
+      if (typeof getComputedStyle === 'function') {
+        syncShellGeometry(getComputedStyle(card), 1.75);
+      }
       resizeCanvas();
       if (typeof ResizeObserver !== 'undefined') {
         ro = new ResizeObserver(() => {
+          lastLayoutKey = '';
           resizeCanvas();
           kick();
         });
@@ -16355,7 +17798,12 @@ function createPrismRimController({ getSettings }) {
   }
 
   function refresh() {
+    lastLayoutKey = '';
     ensureMounted();
+    if (hostCard && shell && typeof getComputedStyle === 'function') {
+      syncShellGeometry(getComputedStyle(hostCard), 1.75);
+      resizeCanvas();
+    }
     kick();
   }
 
@@ -20072,10 +21520,15 @@ const COPY = {
     secMascot: '像素伙伴舞台',
     mascotHint: '驻留在输入框上沿，可拖拽、互动，回复时会进入工作动画（含 Deepy 像素鲸鱼）',
     secWallpaper: '日常效率工作台与本地壁纸',
-    selectionAsk: '划词快捷追问浮条',
-    selectionAskSub: '选中对话中任意文字，一键引用追问、请求解释或复制，不打断阅读',
+    selectionAsk: '划词追问',
+    selectionAskSub: '选中对话文字后，通过浮条或右键在右侧栏追问、解释或复制；按住 Shift 右键可打开系统菜单',
     promptSuggest: '下一步提示词推荐',
-    promptSuggestSub: '回复结束后在输入框上方给出一条接着问的建议，点一下或按 Tab 填入',
+    promptSuggestSub: '回复结束立刻给出半透明建议（本地零延迟兜底，联网快模型无感升级），Tab 填入、Shift+Tab 换一条',
+    promptSuggestModel: '推荐生成方式',
+    promptSuggestModelSub: '默认自动选最快的轻量模型，也可切到「纯本地」完全不调用模型',
+    promptSuggestModelDefault: '自动（最快轻量模型）',
+    promptSuggestModelLocal: '纯本地（零延迟，不调模型）',
+    promptSuggestModelLoading: '加载模型列表…',
     uploadWp: '上传图片 / 视频壁纸',
     uploading: '上传中…',
     clearWp: '清除当前壁纸',
@@ -20151,10 +21604,15 @@ const COPY = {
     secMascot: 'Pixel Mascot Stage',
     mascotHint: 'Interactive pixel companions perched above the composer (including Deepy whale)',
     secWallpaper: 'Productivity Workbench & Wallpaper',
-    selectionAsk: 'Selection Quick-Ask Bar',
-    selectionAskSub: 'Highlight any reply snippet to quote & ask, explain, or copy instantly',
+    selectionAsk: 'Selection Quick-Ask',
+    selectionAskSub: 'Select conversation text to ask, explain in the sidebar, or copy via the floating bar or right-click menu. Hold Shift for the system menu.',
     promptSuggest: 'Next-Prompt Suggestion',
-    promptSuggestSub: 'After a reply, suggest one follow-up above the composer; click or press Tab to use it',
+    promptSuggestSub: 'Instant translucent follow-up inside the empty composer (0ms local + fast model upgrade); Tab to accept, Shift+Tab to cycle',
+    promptSuggestModel: 'Suggestion Engine',
+    promptSuggestModelSub: 'Auto picks the fastest lightweight model, or choose Local Only for zero model calls',
+    promptSuggestModelDefault: 'Auto (fastest lightweight model)',
+    promptSuggestModelLocal: 'Local only (0ms instant, no model)',
+    promptSuggestModelLoading: 'Loading models…',
     uploadWp: 'Upload Image / Video',
     uploading: 'Uploading…',
     clearWp: 'Clear Wallpaper',
@@ -20243,6 +21701,8 @@ function createStudioComponents({ React, createPortal, store }) {
     const zh = isZhUi(s);
     const t = zh ? COPY.zh : COPY.en;
     const [wallpapers, setWallpapers] = useState([]);
+    const [suggestModels, setSuggestModels] = useState([]);
+    const [suggestModelsLoaded, setSuggestModelsLoaded] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadErr, setUploadErr] = useState('');
     const [backupStatus, setBackupStatus] = useState(null);
@@ -20305,8 +21765,24 @@ function createStudioComponents({ React, createPortal, store }) {
       }
     }
 
+    async function loadSuggestModels() {
+      try {
+        const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json && Array.isArray(json.models)) {
+          setSuggestModels(json.models);
+        }
+      } catch {
+        // ignore if host endpoint unavailable
+      } finally {
+        setSuggestModelsLoaded(true);
+      }
+    }
+
     useEffect(() => {
       loadWallpapers();
+      loadSuggestModels();
     }, []);
 
     async function handleFileSelect(ev) {
@@ -20640,6 +22116,25 @@ function createStudioComponents({ React, createPortal, store }) {
           checked: s.promptSuggestEnabled,
           onChange: (v) => store.set({ promptSuggestEnabled: v }),
         }),
+        s.promptSuggestEnabled ? h('div', { className: 'op-row' },
+          h('div', { className: 'op-row-label' },
+            h('strong', null, t.promptSuggestModel),
+            h('span', null, t.promptSuggestModelSub),
+          ),
+          h('select', {
+            className: 'op-select',
+            'aria-label': t.promptSuggestModel,
+            value: s.promptSuggestModel || '',
+            onChange: (ev) => store.set({ promptSuggestModel: ev.target.value }),
+          },
+            h('option', { value: '' }, !suggestModelsLoaded && !suggestModels.length ? t.promptSuggestModelLoading : t.promptSuggestModelDefault),
+            h('option', { value: 'local' }, t.promptSuggestModelLocal),
+            s.promptSuggestModel && s.promptSuggestModel !== 'local' && !suggestModels.some((m) => m.id === s.promptSuggestModel)
+              ? h('option', { value: s.promptSuggestModel }, s.promptSuggestModel)
+              : null,
+            suggestModels.map((m) => h('option', { key: m.id, value: m.id }, m.label && m.label !== m.id ? `${m.label} (${m.id})` : m.id)),
+          ),
+        ) : null,
         h(ToggleRow, {
           label: t.turnOutline,
           sub: t.turnOutlineSub,
@@ -20860,6 +22355,8 @@ function createStudioComponents({ React, createPortal, store }) {
 
 
 
+
+
 function resolveEffectiveTheme(settings) {
   if (settings.themeMode === 'dark') return 'dark';
   if (settings.themeMode === 'light') return 'light';
@@ -20937,6 +22434,15 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
     inject: ['slots'],
     apply(ctx) {
       const store = createSettingsStore();
+      let sideQuestion = null;
+      ctx.inject(['sessions', 'sidebarRight', 'sidebarRightTabs', 'resources', 'conversation'], (scope) => {
+        registerSideQuestion(scope, React, store);
+        scope.effect(() => {
+          const open = (sessionId, text, mode, zh) => openSelectionInSidebar(scope, sessionId, text, mode, zh);
+          sideQuestion = open;
+          return () => { if (sideQuestion === open) sideQuestion = null; };
+        }, 'dsh-obsidian-prism: side question action');
+      });
       const { StudioPanel, FloatingStudioHost } = createStudioComponents({ React, createPortal, store });
       const ObsidianPrismModelPicker = createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, store });
 
@@ -20970,7 +22476,9 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         const effectsCtrl = createEffectsController({ getSettings });
         const rippleCtrl = createRippleController({ getRippleCore, getSettings });
         const workbenchCtrl = createWorkbenchController({ getSettings });
-        const selectionAskCtrl = createSelectionAskController({ getSettings });
+        const openSideQuestion = (...args) => sideQuestion ? sideQuestion(...args) : Promise.reject(new Error('Sidebar unavailable'));
+        const selectionAskCtrl = createSelectionAskController({ getSettings, openSideQuestion });
+        const contextMenuCtrl = createContextMenuController({ getSettings, openSideQuestion });
         const promptSuggestCtrl = createPromptSuggestController({ getSettings });
         const choreographyCtrl = createChoreographyController({ getSettings });
         const prismRimCtrl = createPrismRimController({ getSettings });
@@ -21005,6 +22513,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           mascotCtrl.refresh();
           workbenchCtrl.refresh();
           selectionAskCtrl.refresh();
+          contextMenuCtrl.refresh();
           promptSuggestCtrl.refresh();
           choreographyCtrl.refresh();
           prismRimCtrl.refresh();
@@ -21019,6 +22528,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         mascotCtrl.start();
         workbenchCtrl.start();
         selectionAskCtrl.start();
+        contextMenuCtrl.start();
         promptSuggestCtrl.start();
         choreographyCtrl.start();
         prismRimCtrl.start();
@@ -21061,6 +22571,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           safeDispose(() => prismRimCtrl.dispose());
           safeDispose(() => choreographyCtrl.dispose());
           safeDispose(() => selectionAskCtrl.dispose());
+          safeDispose(() => contextMenuCtrl.dispose());
           safeDispose(() => promptSuggestCtrl.dispose());
           safeDispose(() => workbenchCtrl.dispose());
           safeDispose(() => mascotCtrl.dispose());

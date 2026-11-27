@@ -29,6 +29,965 @@ import { buildStylesheet } from '../src/theme-css.js';
 import { isZhUi, resolveUiLang } from '../src/i18n.js';
 import { formatSelectionQuote } from '../src/selection-ask-controller.js';
 
+test('right-click selection opens a sidebar branch with an editable draft', async () => {
+  const { openSelectionInSidebar } = await import('../src/side-question.js');
+  const calls = [];
+  const sidebarRight = {
+    commandTarget: () => ({ sessionId: 'main' }),
+    openResource: (...args) => calls.push(args),
+  };
+  const sessions = { async fork(options) {
+    assert.deepEqual(options, { sessionId: 'main', increaseTitle: true });
+    return 'branch';
+  } };
+  await openSelectionInSidebar({ sidebarRight, sessions }, 'main', '选中的文字', 'explain', true);
+  assert.equal(calls.length, 1);
+  assert.match(calls[0][0], /^dsh-resource:\/\/obsidian-prism-question\/session\/branch$/);
+  assert.equal(calls[0][1].destination, 'sidebar');
+  assert.equal(calls[0][1].params.prompt, formatSelectionQuote('选中的文字', 'explain', true));
+  sidebarRight.commandTarget = () => ({ sessionId: 'other' });
+  await assert.rejects(openSelectionInSidebar({ sidebarRight, sessions }, 'main', '选中的文字', 'quote', true));
+  assert.equal(calls.length, 1);
+});
+
+test('selection quick-ask pill and context menu share one toggle and both open the sidebar', async () => {
+  const { createSelectionAskController } = await import('../src/selection-ask-controller.js');
+  const { createContextMenuController } = await import('../src/context-menu-controller.js');
+
+  assert.equal('contextMenuEnabled' in DEFAULT_SETTINGS, false);
+  assert.equal('contextMenuEnabled' in sanitizeSettings({ contextMenuEnabled: false }), false);
+
+  class FakeElement {
+    constructor(tag = 'div', attrs = {}, parent = null) {
+      this.tagName = tag.toUpperCase();
+      this.nodeType = 1;
+      this.attrs = { ...attrs };
+      this.className = '';
+      this.style = {};
+      this.children = [];
+      this.listeners = new Map();
+      this.parentNode = parent;
+      this.textContent = '';
+      this.isConnected = false;
+      this.href = attrs.href || '';
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    appendChild(child) {
+      child.parentNode = this;
+      child.isConnected = this.isConnected;
+      this.children.push(child);
+      return child;
+    }
+    removeChild(child) {
+      this.children = this.children.filter((c) => c !== child);
+      child.parentNode = null;
+      child.isConnected = false;
+    }
+    remove() { this.parentNode?.removeChild(this); }
+    addEventListener(type, fn) {
+      if (!this.listeners.has(type)) this.listeners.set(type, []);
+      this.listeners.get(type).push(fn);
+    }
+    dispatch(type, ev = {}) {
+      for (const fn of this.listeners.get(type) || []) fn(ev);
+    }
+    contains(node) {
+      let cur = node;
+      while (cur) {
+        if (cur === this) return true;
+        cur = cur.parentNode;
+      }
+      return false;
+    }
+    closest(selector) {
+      const parts = selector.split(',').map((s) => s.trim());
+      let cur = this;
+      while (cur) {
+        for (const p of parts) {
+          if (p === '[data-conversation-session]' && cur.getAttribute('data-conversation-session')) return cur;
+          if (p === '[data-chat-flow]' && cur.getAttribute('data-chat-flow') != null) return cur;
+          if (p === 'a[href]' && cur.tagName === 'A' && cur.href) return cur;
+          if (p === '.op-side-question' && cur.className.includes('op-side-question')) return cur;
+          if (p === '.op-selection-pill' && cur.className.includes('op-selection-pill')) return cur;
+        }
+        cur = cur.parentNode;
+      }
+      return null;
+    }
+    querySelector(sel) {
+      if (sel === 'button') return this.children.find((c) => c.tagName === 'BUTTON') || null;
+      return null;
+    }
+    getBoundingClientRect() { return { left: 100, top: 100, right: 240, bottom: 134, width: 140, height: 34 }; }
+    focus() {}
+  }
+
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevEl = globalThis.Element;
+  const prevRaf = globalThis.requestAnimationFrame;
+  const prevCaf = globalThis.cancelAnimationFrame;
+
+  const docListeners = new Map();
+  const winListeners = new Map();
+  const body = new FakeElement('body');
+  body.isConnected = true;
+
+  const conversation = new FakeElement('div', { 'data-conversation-session': 'sess-1', 'data-chat-flow': '1' }, body);
+  const textNode = new FakeElement('p', {}, conversation);
+  const linkNode = new FakeElement('a', { href: 'https://example.com' }, conversation);
+
+  let currentSelection = null;
+  globalThis.Element = FakeElement;
+  globalThis.requestAnimationFrame = () => 1;
+  globalThis.cancelAnimationFrame = () => {};
+  globalThis.document = {
+    body,
+    activeElement: null,
+    createElement: (tag) => new FakeElement(tag),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    addEventListener: (type, fn) => {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      docListeners.set(type, (docListeners.get(type) || []).filter((f) => f !== fn));
+    },
+  };
+  globalThis.window = {
+    innerWidth: 1280,
+    innerHeight: 800,
+    getSelection: () => currentSelection,
+    addEventListener: (type, fn) => {
+      if (!winListeners.has(type)) winListeners.set(type, []);
+      winListeners.get(type).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      winListeners.set(type, (winListeners.get(type) || []).filter((f) => f !== fn));
+    },
+  };
+
+  let settings = sanitizeSettings({ enabled: true, selectionAskEnabled: true, uiLanguage: 'zh' });
+  const sideCalls = [];
+  const openSideQuestion = async (...args) => { sideCalls.push(args); };
+  const pillCtrl = createSelectionAskController({ getSettings: () => settings, openSideQuestion });
+  const menuCtrl = createContextMenuController({ getSettings: () => settings, openSideQuestion });
+
+  try {
+    pillCtrl.start();
+    menuCtrl.start();
+
+    let cleared = 0;
+    currentSelection = {
+      rangeCount: 1,
+      isCollapsed: false,
+      anchorNode: textNode,
+      focusNode: textNode,
+      toString: () => '核心结论',
+      getRangeAt: () => ({
+        startContainer: textNode,
+        endContainer: textNode,
+        commonAncestorContainer: textNode,
+        getClientRects: () => [{ left: 100, top: 200, right: 200, bottom: 220, width: 100, height: 20 }],
+      }),
+      removeAllRanges: () => { cleared += 1; },
+    };
+
+    // Trigger selection pill and click "侧边追问"
+    for (const fn of docListeners.get('pointerup') || []) fn({ target: textNode });
+    await new Promise((r) => setTimeout(r, 60));
+    const pill = body.children.find((c) => c.className === 'op-selection-pill');
+    assert.ok(pill);
+    const pillLabels = pill.children.map((b) => b.textContent);
+    assert.deepEqual(pillLabels, ['侧边追问', '侧边解释', '复制']);
+    pill.children[0].dispatch('click', { preventDefault() {}, stopPropagation() {} });
+    await Promise.resolve();
+    assert.deepEqual(sideCalls[0], ['sess-1', '核心结论', 'quote', true]);
+    assert.equal(cleared, 1);
+
+    // Trigger right-click menu with selectionAskEnabled = true
+    for (const fn of docListeners.get('contextmenu') || []) {
+      fn({ target: textNode, clientX: 120, clientY: 160, shiftKey: false, preventDefault() {}, stopPropagation() {} });
+    }
+    let menu = body.children.find((c) => c.className === 'op-context-menu');
+    assert.ok(menu);
+    assert.deepEqual(
+      menu.children.filter((c) => c.tagName === 'BUTTON').map((b) => b.textContent),
+      ['复制选中内容', '在侧边栏追问', '在侧边栏解释'],
+    );
+    menu.children.find((b) => b.textContent === '在侧边栏解释').dispatch('click', { preventDefault() {}, stopPropagation() {} });
+    await Promise.resolve();
+    assert.deepEqual(sideCalls[1], ['sess-1', '核心结论', 'explain', true]);
+
+    // Turn off selectionAskEnabled: pill disappears, right-click hides side-ask but keeps regular actions
+    settings = sanitizeSettings({ enabled: true, selectionAskEnabled: false, uiLanguage: 'zh' });
+    pillCtrl.refresh();
+    menuCtrl.refresh();
+    for (const fn of docListeners.get('pointerup') || []) fn({ target: textNode });
+    await new Promise((r) => setTimeout(r, 60));
+    assert.equal(body.children.find((c) => c.className === 'op-selection-pill'), undefined);
+
+    for (const fn of docListeners.get('contextmenu') || []) {
+      fn({ target: linkNode, clientX: 120, clientY: 160, shiftKey: false, preventDefault() {}, stopPropagation() {} });
+    }
+    menu = body.children.find((c) => c.className === 'op-context-menu');
+    assert.ok(menu);
+    assert.deepEqual(
+      menu.children.filter((c) => c.tagName === 'BUTTON').map((b) => b.textContent),
+      ['复制选中内容', '复制链接'],
+    );
+  } finally {
+    pillCtrl.dispose();
+    menuCtrl.dispose();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.Element = prevEl;
+    globalThis.requestAnimationFrame = prevRaf;
+    globalThis.cancelAnimationFrame = prevCaf;
+  }
+});
+
+test('prompt suggestions use the completed main turn and the selected Magpie model', async (t) => {
+  const { collectTurnContext } = await import('../src/prompt-suggest-controller.js');
+  const row = (kind, turn, text, part = null) => ({
+    innerText: text,
+    getAttribute: (name) => ({ 'data-chat-flow-kind': kind, 'data-chat-turn': turn, 'data-chat-group-part': part })[name],
+    querySelector: () => null,
+  });
+  const conversation = {
+    querySelectorAll: (selector) => selector === '[data-turn-tail]'
+      ? [{ getAttribute: () => '2' }]
+      : [row('user', '2', '前一句'), row('assistant-step', '1', '上一轮'), row('assistant-step', '2', '推理过程', 'reasoning'), row('assistant-step', '2', '实际回复', 'response')],
+  };
+  assert.deepEqual(collectTurnContext(conversation), { user: '前一句', assistant: '实际回复', sig: '2' });
+  assert.equal(sanitizeSettings({ promptSuggestModel: 'codex/example' }).promptSuggestModel, 'codex/example');
+
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  const catalog = [{ id: 'codex/example', display_name: 'Example' }, { id: 'images/example', modalities: { output: ['image'] } }];
+  const completion = t.mock.method(globalThis, 'fetch', async (url, options) => {
+    if (url.endsWith('/models')) return Response.json({ data: catalog });
+    assert.equal(JSON.parse(options.body).model, 'codex/example');
+    return Response.json({ choices: [{ message: { content: '请继续' } }] });
+  });
+  const req = (model) => new Request('http://localhost', { method: 'POST', body: JSON.stringify({ assistant: '实际回复', model }) });
+  const listed = await (await route.fetch(new Request('http://localhost'))).json();
+  assert.deepEqual(listed.models, [{ id: 'codex/example', label: 'Example' }]);
+  assert.deepEqual(await (await route.fetch(req('codex/example'))).json(), { ok: true, text: '请继续' });
+  assert.equal((await route.fetch(req('unknown/model'))).status, 400);
+  assert.equal(completion.mock.calls.filter(({ arguments: [url] }) => url.endsWith('/chat/completions')).length, 1);
+});
+
+test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Tab, and accepts on Tab', async (t) => {
+  const { createPromptSuggestController } = await import('../src/prompt-suggest-controller.js');
+  const css = buildStylesheet();
+  assert.match(css, /\[data-op-prompt-ghost="1"\] \[data-composer-placeholder\]/);
+  assert.match(css, /\.op-prompt-suggest-kbd/);
+
+  class FakeEl {
+    constructor(tag = 'div', attrs = {}, parent = null) {
+      this.tagName = tag.toUpperCase();
+      this.attrs = { ...attrs };
+      this.className = '';
+      this.id = '';
+      this.children = [];
+      this.listeners = new Map();
+      this.parentElement = parent;
+      this._text = '';
+      this.value = '';
+      this.isContentEditable = attrs.contenteditable === 'true';
+      if (parent) parent.children.push(this);
+    }
+    get textContent() { return this._text; }
+    set textContent(v) {
+      this._text = String(v ?? '');
+      if (this._text === '') this.children = [];
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    appendChild(child) {
+      child.parentElement = this;
+      this.children.push(child);
+      return child;
+    }
+    append(...nodes) { for (const n of nodes) this.appendChild(n); }
+    remove() {
+      if (!this.parentElement) return;
+      this.parentElement.children = this.parentElement.children.filter((c) => c !== this);
+      this.parentElement = null;
+    }
+    addEventListener(type, fn) {
+      if (!this.listeners.has(type)) this.listeners.set(type, []);
+      this.listeners.get(type).push(fn);
+    }
+    dispatchEvent() { return true; }
+    focus() {}
+    scrollIntoView() {}
+    contains(node) {
+      let cur = node;
+      while (cur) {
+        if (cur === this) return true;
+        cur = cur.parentElement;
+      }
+      return false;
+    }
+    closest(sel) {
+      let cur = this;
+      while (cur) {
+        if (sel === '[data-composer-card]' && cur.getAttribute('data-composer-card') != null) return cur;
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+    querySelector(sel) {
+      if (sel === '[contenteditable="true"]' || sel === '[data-composer-card] [contenteditable="true"]') {
+        const stack = [...this.children];
+        while (stack.length) {
+          const n = stack.shift();
+          if (n.getAttribute('contenteditable') === 'true') return n;
+          stack.push(...n.children);
+        }
+      }
+      if (sel === '[data-composer-card]') {
+        const stack = [...this.children];
+        while (stack.length) {
+          const n = stack.shift();
+          if (n.getAttribute('data-composer-card') != null) return n;
+          stack.push(...n.children);
+        }
+      }
+      return null;
+    }
+    querySelectorAll(sel) {
+      const out = [];
+      const stack = [...this.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (sel === '[data-turn-tail]' && n.getAttribute('data-turn-tail') != null) out.push(n);
+        if (sel === '[data-chat-flow-kind][data-chat-turn]' && n.getAttribute('data-chat-flow-kind') && n.getAttribute('data-chat-turn')) out.push(n);
+        if (sel === '[data-conversation-session]' && n.getAttribute('data-conversation-session')) out.push(n);
+        if (sel === '[data-op-prompt-ghost]' && n.getAttribute('data-op-prompt-ghost') != null) out.push(n);
+        stack.push(...n.children);
+      }
+      return out;
+    }
+  }
+
+  const root = new FakeEl('div');
+  const conv = new FakeEl('div', { 'data-conversation-session': 'main' }, root);
+  const tail = new FakeEl('div', { 'data-turn-tail': '3' }, conv);
+  const userRow = new FakeEl('div', { 'data-chat-flow-kind': 'user', 'data-chat-turn': '3' }, conv);
+  userRow.innerText = '改成半透明放输入框里';
+  const asstRow = new FakeEl('div', { 'data-chat-flow-kind': 'assistant-step', 'data-chat-turn': '3', 'data-chat-group-part': 'response' }, conv);
+  asstRow.innerText = '已改成输入框内半透明提示。';
+  const card = new FakeEl('div', { 'data-composer-card': '1' }, conv);
+  const inputHost = new FakeEl('div', {}, card);
+  const editor = new FakeEl('div', { contenteditable: 'true' }, inputHost);
+  new FakeEl('div', { 'data-composer-placeholder': 'true' }, inputHost);
+  assert.ok(tail);
+
+  const docListeners = new Map();
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  const prevSetTimeout = globalThis.setTimeout;
+  const prevClearTimeout = globalThis.clearTimeout;
+  const scheduled = [];
+
+  globalThis.document = {
+    createElement: (tag) => new FakeEl(tag),
+    getElementById: (id) => {
+      const stack = [...root.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (n.id === id) return n;
+        stack.push(...n.children);
+      }
+      return null;
+    },
+    querySelector: (sel) => root.querySelector(sel),
+    querySelectorAll: (sel) => root.querySelectorAll(sel),
+    addEventListener: (type, fn) => {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      docListeners.set(type, (docListeners.get(type) || []).filter((f) => f !== fn));
+    },
+  };
+  globalThis.window = { getSelection: () => null };
+  globalThis.setTimeout = (fn) => { scheduled.push(fn); return scheduled.length; };
+  globalThis.clearTimeout = () => {};
+
+  const bodies = [];
+  t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    const body = JSON.parse(options.body);
+    bodies.push(body);
+    return Response.json({ ok: true, text: bodies.length === 1 ? '第一条建议' : '第二条建议' });
+  });
+
+  const ctrl = createPromptSuggestController({
+    getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, uiLanguage: 'zh' }),
+  });
+
+  try {
+    ctrl.start();
+    ctrl.notifyStreamingChange(false);
+    assert.equal(scheduled.length, 1);
+    scheduled[0]();
+    await new Promise((r) => prevSetTimeout(r, 15));
+
+    // Ghost sits inside inputHost, never above composer card
+    const ghost = inputHost.children.find((c) => c.id === 'op-prompt-suggest');
+    assert.ok(ghost);
+    assert.equal(inputHost.getAttribute('data-op-prompt-ghost'), '1');
+    assert.equal(conv.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+    assert.equal(ghost.children[0].textContent, '第一条建议');
+
+    // Shift+Tab cycles with exclude list
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: true, target: editor, preventDefault() {}, stopPropagation() {} });
+    }
+    await new Promise((r) => prevSetTimeout(r, 10));
+    assert.deepEqual(bodies[1].exclude, ['第一条建议']);
+    assert.equal(ghost.children[0].textContent, '第二条建议');
+
+    // Tab accepts into composer and clears ghost + host attribute
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: false, target: editor, preventDefault() {}, stopPropagation() {} });
+    }
+    assert.equal(editor.textContent, '第二条建议');
+    assert.equal(inputHost.getAttribute('data-op-prompt-ghost'), null);
+    assert.equal(inputHost.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+  } finally {
+    ctrl.dispose();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+    globalThis.setTimeout = prevSetTimeout;
+    globalThis.clearTimeout = prevClearTimeout;
+  }
+});
+
+test('prompt suggestion prefetches during streaming for 0ms instant display and caches /v1/models', async (t) => {
+  const { createPromptSuggestController } = await import('../src/prompt-suggest-controller.js');
+
+  // 1. Verify /v1/models cache avoids extra serial model fetches across POSTs
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  let modelFetchCount = 0;
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (url.endsWith('/models')) {
+      modelFetchCount += 1;
+      return Response.json({ data: [{ id: 'codex/fast', display_name: 'Fast' }] });
+    }
+    return Response.json({ choices: [{ message: { content: '下一步建议' } }] });
+  });
+  const postReq = () => new Request('http://localhost', {
+    method: 'POST',
+    body: JSON.stringify({ assistant: '已经完成修改。', model: 'codex/fast' }),
+  });
+  assert.deepEqual(await (await route.fetch(postReq())).json(), { ok: true, text: '下一步建议' });
+  assert.deepEqual(await (await route.fetch(postReq())).json(), { ok: true, text: '下一步建议' });
+  assert.equal(modelFetchCount, 1);
+
+  // 2. Verify streaming prefetch shows ghost synchronously at 0ms when streaming stops
+  class MiniEl {
+    constructor(tag = 'div', attrs = {}, parent = null) {
+      this.tagName = tag.toUpperCase();
+      this.attrs = { ...attrs };
+      this.className = '';
+      this.id = '';
+      this.children = [];
+      this.parentElement = parent;
+      this._text = '';
+      this.isContentEditable = attrs.contenteditable === 'true';
+      if (parent) parent.children.push(this);
+    }
+    get textContent() { return this._text; }
+    set textContent(v) {
+      this._text = String(v ?? '');
+      if (this._text === '') this.children = [];
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
+    append(...ns) { for (const n of ns) this.appendChild(n); }
+    remove() {
+      if (!this.parentElement) return;
+      this.parentElement.children = this.parentElement.children.filter((c) => c !== this);
+      this.parentElement = null;
+    }
+    addEventListener() {}
+    querySelector(sel) {
+      const stack = [...this.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (sel === '[contenteditable="true"]' && n.getAttribute('contenteditable') === 'true') return n;
+        if (sel === '[data-composer-card]' && n.getAttribute('data-composer-card') != null) return n;
+        stack.push(...n.children);
+      }
+      return null;
+    }
+    querySelectorAll(sel) {
+      const out = [];
+      const stack = [...this.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (sel === '[data-turn-tail]' && n.getAttribute('data-turn-tail') != null) out.push(n);
+        if (sel === '[data-chat-flow-kind][data-chat-turn]' && n.getAttribute('data-chat-flow-kind') && n.getAttribute('data-chat-turn')) out.push(n);
+        if (sel === '[data-conversation-session]' && n.getAttribute('data-conversation-session')) out.push(n);
+        if (sel === '[data-op-prompt-ghost]' && n.getAttribute('data-op-prompt-ghost') != null) out.push(n);
+        stack.push(...n.children);
+      }
+      return out;
+    }
+  }
+
+  const root = new MiniEl('div');
+  const conv = new MiniEl('div', { 'data-conversation-session': 'main' }, root);
+  const userRow = new MiniEl('div', { 'data-chat-flow-kind': 'user', 'data-chat-turn': '4' }, conv);
+  userRow.innerText = '能回复的瞬间就有吗？';
+  const respRow = new MiniEl('div', { 'data-chat-flow-kind': 'assistant-step', 'data-chat-turn': '4', 'data-chat-group-part': 'response' }, conv);
+  respRow.innerText = '可以通过流式尾段提前预取并缓存模型列表，在回复停住的那一帧立刻把建议亮出来。';
+  const card = new MiniEl('div', { 'data-composer-card': '1' }, conv);
+  const inputHost = new MiniEl('div', {}, card);
+  new MiniEl('div', { contenteditable: 'true' }, inputHost);
+
+  const prevDoc = globalThis.document;
+  const prevSetInterval = globalThis.setInterval;
+  const prevClearInterval = globalThis.clearInterval;
+  const prevSetTimeout = globalThis.setTimeout;
+  const prevClearTimeout = globalThis.clearTimeout;
+  let pollFn = null;
+  let settleFn = null;
+
+  globalThis.document = {
+    createElement: (tag) => new MiniEl(tag),
+    getElementById: (id) => {
+      const stack = [...root.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (n.id === id) return n;
+        stack.push(...n.children);
+      }
+      return null;
+    },
+    querySelector: (sel) => root.querySelector(sel),
+    querySelectorAll: (sel) => root.querySelectorAll(sel),
+    addEventListener() {},
+    removeEventListener() {},
+  };
+  globalThis.setInterval = (fn) => { pollFn = fn; return 1; };
+  globalThis.clearInterval = () => { pollFn = null; };
+  globalThis.setTimeout = (fn) => { settleFn = fn; return 2; };
+  globalThis.clearTimeout = () => { settleFn = null; };
+
+  let suggestFetches = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    suggestFetches += 1;
+    return Response.json({ ok: true, text: '瞬间预取建议' });
+  });
+
+  const ctrl = createPromptSuggestController({
+    getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, uiLanguage: 'zh' }),
+  });
+
+  try {
+    ctrl.start();
+    ctrl.notifyStreamingChange(true);
+    assert.equal(typeof pollFn, 'function');
+    pollFn();
+    await new Promise((r) => prevSetTimeout(r, 15));
+    assert.equal(suggestFetches, 1);
+    // Still streaming: must NOT display yet
+    assert.equal(inputHost.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+
+    // Streaming stops: ghost must appear synchronously at 0ms
+    new MiniEl('div', { 'data-turn-tail': '4' }, conv);
+    ctrl.notifyStreamingChange(false);
+    const ghost = inputHost.children.find((c) => c.id === 'op-prompt-suggest');
+    assert.ok(ghost);
+    assert.equal(ghost.children[0].textContent, '瞬间预取建议');
+
+    // Final settle check sees no large tail delta, so no extra request is fired
+    assert.equal(typeof settleFn, 'function');
+    settleFn();
+    assert.equal(suggestFetches, 1);
+  } finally {
+    ctrl.dispose();
+    globalThis.document = prevDoc;
+    globalThis.setInterval = prevSetInterval;
+    globalThis.clearInterval = prevClearInterval;
+    globalThis.setTimeout = prevSetTimeout;
+    globalThis.clearTimeout = prevClearTimeout;
+  }
+});
+
+test('prompt suggestion persists across session switch and composer remount until user types, and ignores holding/sidebar streaming', async (t) => {
+  const { createPromptSuggestController } = await import('../src/prompt-suggest-controller.js');
+  const { detectStreamingActive } = await import('../src/mascot-controller.js');
+
+  class NodeEl {
+    constructor(tag = 'div', attrs = {}, parent = null) {
+      this.tagName = tag.toUpperCase();
+      this.attrs = { ...attrs };
+      this.className = '';
+      this.id = '';
+      this.hidden = Boolean(attrs.hidden);
+      this.children = [];
+      this.parentElement = parent;
+      this._text = '';
+      this.isContentEditable = attrs.contenteditable === 'true';
+      if (parent) parent.children.push(this);
+    }
+    get textContent() { return this._text; }
+    set textContent(v) {
+      this._text = String(v ?? '');
+      if (this._text === '') this.children = [];
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
+    append(...ns) { for (const n of ns) this.appendChild(n); }
+    remove() {
+      if (!this.parentElement) return;
+      this.parentElement.children = this.parentElement.children.filter((c) => c !== this);
+      this.parentElement = null;
+    }
+    addEventListener() {}
+    contains(node) {
+      let cur = node;
+      while (cur) {
+        if (cur === this) return true;
+        cur = cur.parentElement;
+      }
+      return false;
+    }
+    closest(sel) {
+      let cur = this;
+      while (cur) {
+        if (sel.includes('[data-sidebar-right-session]') && cur.getAttribute('data-sidebar-right-session') != null) return cur;
+        if (sel.includes('[data-composer-card]') && cur.getAttribute('data-composer-card') != null) return cur;
+        if (sel.includes('[hidden]') && (cur.hidden || cur.getAttribute('hidden') != null)) return cur;
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+    matchesRunning(sel) {
+      if (sel.includes('[data-streaming="true"]') && this.getAttribute('data-streaming') === 'true') return true;
+      if (sel.includes('[data-chat-running]:not([data-holding])') && this.getAttribute('data-chat-running') != null && this.getAttribute('data-holding') == null) return true;
+      return false;
+    }
+    querySelector(sel) {
+      return this.querySelectorAll(sel)[0] || null;
+    }
+    querySelectorAll(sel) {
+      const out = [];
+      const stack = [...this.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (sel === '[contenteditable="true"]' && n.getAttribute('contenteditable') === 'true') out.push(n);
+        else if (sel === '[data-composer-card]' && n.getAttribute('data-composer-card') != null) out.push(n);
+        else if (sel === '[data-turn-tail]' && n.getAttribute('data-turn-tail') != null) out.push(n);
+        else if (sel === '[data-chat-flow-kind][data-chat-turn]' && n.getAttribute('data-chat-flow-kind') && n.getAttribute('data-chat-turn')) out.push(n);
+        else if (sel === '[data-conversation-session]' && n.getAttribute('data-conversation-session')) out.push(n);
+        else if (sel === '[data-op-prompt-ghost]' && n.getAttribute('data-op-prompt-ghost') != null) out.push(n);
+        else if (n.matchesRunning(sel)) out.push(n);
+        stack.push(...n.children);
+      }
+      return out;
+    }
+  }
+
+  // 1. Holding indicator and sidebar streaming must NOT falsely mark main conversation as streaming
+  const streamRoot = new NodeEl('div');
+  const mainSess = new NodeEl('div', { 'data-conversation-session': 'main-s' }, streamRoot);
+  new NodeEl('div', { 'data-chat-running': 'true', 'data-holding': '' }, mainSess);
+  const sideWrap = new NodeEl('div', { 'data-sidebar-right-session': '1' }, streamRoot);
+  new NodeEl('div', { 'data-chat-running': 'true' }, sideWrap);
+  assert.equal(detectStreamingActive(streamRoot), false);
+  const liveRun = new NodeEl('div', { 'data-chat-running': 'true' }, mainSess);
+  assert.equal(detectStreamingActive(streamRoot), true);
+  liveRun.remove();
+  assert.equal(detectStreamingActive(streamRoot), false);
+
+  // 2. Suggestion persists across composer remount and session switch, hides only when user types
+  const root = new NodeEl('div');
+  const buildSessionA = () => {
+    const conv = new NodeEl('div', { 'data-conversation-session': 'sess-A' }, root);
+    new NodeEl('div', { 'data-turn-tail': '7' }, conv);
+    const u = new NodeEl('div', { 'data-chat-flow-kind': 'user', 'data-chat-turn': '7' }, conv);
+    u.innerText = '测一下持久显示';
+    const a = new NodeEl('div', { 'data-chat-flow-kind': 'assistant-step', 'data-chat-turn': '7', 'data-chat-group-part': 'response' }, conv);
+    a.innerText = '已改为持久显示，只有你打字才消失。';
+    const card = new NodeEl('div', { 'data-composer-card': '1' }, conv);
+    const host = new NodeEl('div', {}, card);
+    const editor = new NodeEl('div', { contenteditable: 'true' }, host);
+    return { conv, host, editor };
+  };
+  let sessA = buildSessionA();
+
+  const docListeners = new Map();
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  globalThis.document = {
+    documentElement: { getAttribute: () => '0' },
+    createElement: (tag) => new NodeEl(tag),
+    getElementById: (id) => {
+      const stack = [...root.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (n.id === id) return n;
+        stack.push(...n.children);
+      }
+      return null;
+    },
+    querySelector: (sel) => root.querySelector(sel),
+    querySelectorAll: (sel) => root.querySelectorAll(sel),
+    addEventListener: (type, fn) => {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      docListeners.set(type, (docListeners.get(type) || []).filter((f) => f !== fn));
+    },
+  };
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+
+  let fetchCount = 0;
+  t.mock.method(globalThis, 'fetch', async () => {
+    fetchCount += 1;
+    return Response.json({ ok: true, text: '持久建议内容' });
+  });
+
+  const ctrl = createPromptSuggestController({
+    getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, uiLanguage: 'zh' }),
+  });
+
+  try {
+    ctrl.start();
+    // Initial sync on idle finished conversation fetches and displays ghost
+    ctrl.sync();
+    await new Promise((r) => setTimeout(r, 15));
+    assert.equal(fetchCount, 1);
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent, '持久建议内容');
+
+    // Escape outside composer must NOT dismiss ghost
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Escape', target: root });
+    }
+    assert.ok(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'));
+
+    // Switch away to session B (unmounts session A's composer) and switch back to session A
+    sessA.conv.remove();
+    const sessB = new NodeEl('div', { 'data-conversation-session': 'sess-B' }, root);
+    const cardB = new NodeEl('div', { 'data-composer-card': '1' }, sessB);
+    const hostB = new NodeEl('div', {}, cardB);
+    new NodeEl('div', { contenteditable: 'true' }, hostB);
+    ctrl.sync();
+    assert.equal(hostB.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+
+    // Return to session A with freshly remounted composer: restores immediately from cache with 0 extra fetches
+    sessB.remove();
+    sessA = buildSessionA();
+    ctrl.sync();
+    assert.equal(fetchCount, 1);
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent, '持久建议内容');
+
+    // User starts typing: hides immediately and stays hidden even if text is later cleared on same turn
+    sessA.editor.textContent = '我自己写';
+    for (const fn of docListeners.get('input') || []) {
+      fn({ target: sessA.editor });
+    }
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+    sessA.editor.textContent = '';
+    ctrl.sync();
+    assert.equal(sessA.host.children.find((c) => c.id === 'op-prompt-suggest'), undefined);
+  } finally {
+    ctrl.dispose();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+
+test('prompt suggestion shows 0ms local fallback with fast-model upgrade, supports pure-local 0-fetch mode, and prefers fast default model', async (t) => {
+  const { buildLocalSuggestions, createPromptSuggestController, LOCAL_ONLY_MODEL } = await import('../src/prompt-suggest-controller.js');
+
+  // 1. Local heuristic produces context-aware candidates in zh and en
+  const choiceList = buildLocalSuggestions({ assistant: '有两种改法：1. 本地瞬出 2. 纯本地，选哪种？', zh: true });
+  assert.ok(choiceList.length >= 4);
+  assert.match(choiceList[0], /推荐|方案|第一种/);
+  const enList = buildLocalSuggestions({ assistant: 'All tests passed and ready to verify.', zh: false });
+  assert.ok(enList.length >= 4);
+  assert.match(enList[0], /next step|Looks good/i);
+
+  // 2. Host route defaultModel prefers non-reasoning flash model over group/fastest-first
+  const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
+  t.mock.method(globalThis, 'fetch', async () => Response.json({
+    data: [
+      { id: 'group/fastest-first', display_name: 'Fastest First' },
+      { id: 'qwen-cn/qwen-flash-2025-07-28', display_name: 'Qwen Flash' },
+    ],
+  }));
+  const listed = await (await route.fetch(new Request('http://localhost'))).json();
+  assert.equal(listed.defaultModel, 'qwen-cn/qwen-flash-2025-07-28');
+
+  // 3. Pure-local mode makes ZERO fetches and cycles locally at 0ms
+  class El {
+    constructor(tag = 'div', attrs = {}, parent = null) {
+      this.tagName = tag.toUpperCase();
+      this.attrs = { ...attrs };
+      this.className = '';
+      this.id = '';
+      this.children = [];
+      this.parentElement = parent;
+      this._text = '';
+      this.isContentEditable = attrs.contenteditable === 'true';
+      if (parent) parent.children.push(this);
+    }
+    get textContent() { return this._text; }
+    set textContent(v) {
+      this._text = String(v ?? '');
+      if (this._text === '') this.children = [];
+    }
+    setAttribute(k, v) { this.attrs[k] = String(v); }
+    getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; }
+    removeAttribute(k) { delete this.attrs[k]; }
+    appendChild(c) { c.parentElement = this; this.children.push(c); return c; }
+    append(...ns) { for (const n of ns) this.appendChild(n); }
+    remove() {
+      if (!this.parentElement) return;
+      this.parentElement.children = this.parentElement.children.filter((c) => c !== this);
+      this.parentElement = null;
+    }
+    addEventListener() {}
+    contains(node) {
+      let cur = node;
+      while (cur) {
+        if (cur === this) return true;
+        cur = cur.parentElement;
+      }
+      return false;
+    }
+    closest(sel) {
+      let cur = this;
+      while (cur) {
+        if (sel.includes('[data-composer-card]') && cur.getAttribute('data-composer-card') != null) return cur;
+        cur = cur.parentElement;
+      }
+      return null;
+    }
+    querySelector(sel) { return this.querySelectorAll(sel)[0] || null; }
+    querySelectorAll(sel) {
+      const out = [];
+      const stack = [...this.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (sel === '[contenteditable="true"]' && n.getAttribute('contenteditable') === 'true') out.push(n);
+        else if (sel === '[data-composer-card]' && n.getAttribute('data-composer-card') != null) out.push(n);
+        else if (sel === '[data-turn-tail]' && n.getAttribute('data-turn-tail') != null) out.push(n);
+        else if (sel === '[data-chat-flow-kind][data-chat-turn]' && n.getAttribute('data-chat-flow-kind') && n.getAttribute('data-chat-turn')) out.push(n);
+        else if (sel === '[data-conversation-session]' && n.getAttribute('data-conversation-session')) out.push(n);
+        else if (sel === '[data-op-prompt-ghost]' && n.getAttribute('data-op-prompt-ghost') != null) out.push(n);
+        stack.push(...n.children);
+      }
+      return out;
+    }
+  }
+
+  const root = new El('div');
+  const conv = new El('div', { 'data-conversation-session': 'local-sess' }, root);
+  new El('div', { 'data-turn-tail': '9' }, conv);
+  const asst = new El('div', { 'data-chat-flow-kind': 'assistant-step', 'data-chat-turn': '9', 'data-chat-group-part': 'response' }, conv);
+  asst.innerText = '有两种改法，选第一种还是第二种？';
+  const card = new El('div', { 'data-composer-card': '1' }, conv);
+  const host = new El('div', {}, card);
+  const editor = new El('div', { contenteditable: 'true' }, host);
+
+  const docListeners = new Map();
+  const prevDoc = globalThis.document;
+  const prevWin = globalThis.window;
+  globalThis.document = {
+    documentElement: { getAttribute: () => '0' },
+    createElement: (tag) => new El(tag),
+    getElementById: (id) => {
+      const stack = [...root.children];
+      while (stack.length) {
+        const n = stack.shift();
+        if (n.id === id) return n;
+        stack.push(...n.children);
+      }
+      return null;
+    },
+    querySelector: (sel) => root.querySelector(sel),
+    querySelectorAll: (sel) => root.querySelectorAll(sel),
+    addEventListener: (type, fn) => {
+      if (!docListeners.has(type)) docListeners.set(type, []);
+      docListeners.get(type).push(fn);
+    },
+    removeEventListener: (type, fn) => {
+      docListeners.set(type, (docListeners.get(type) || []).filter((f) => f !== fn));
+    },
+  };
+  globalThis.window = { addEventListener() {}, removeEventListener() {} };
+
+  let fetchCalls = 0;
+  let resolveModel = null;
+  t.mock.method(globalThis, 'fetch', async () => {
+    fetchCalls += 1;
+    return new Promise((resolve) => {
+      resolveModel = () => resolve(Response.json({ ok: true, text: '快模型升级后的精准建议' }));
+    });
+  });
+
+  // 3a. Pure-local mode: 0ms instant + 0ms Shift+Tab cycle + 0 fetches
+  const localCtrl = createPromptSuggestController({
+    getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, promptSuggestModel: LOCAL_ONLY_MODEL, uiLanguage: 'zh' }),
+  });
+  try {
+    localCtrl.start();
+    localCtrl.notifyStreamingChange(true);
+    localCtrl.notifyStreamingChange(false);
+    const first = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
+    assert.ok(first);
+    assert.equal(fetchCalls, 0);
+
+    for (const fn of docListeners.get('keydown') || []) {
+      fn({ key: 'Tab', shiftKey: true, target: editor, preventDefault() {}, stopPropagation() {} });
+    }
+    const second = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
+    assert.ok(second && second !== first);
+    assert.equal(fetchCalls, 0);
+  } finally {
+    localCtrl.dispose();
+  }
+
+  // 3b. Hybrid mode: 0ms local immediately appears before model resolves, then smoothly upgrades
+  const hybridCtrl = createPromptSuggestController({
+    getSettings: () => sanitizeSettings({ enabled: true, promptSuggestEnabled: true, promptSuggestModel: 'qwen-cn/qwen-flash-2025-07-28', uiLanguage: 'zh' }),
+  });
+  try {
+    hybridCtrl.start();
+    hybridCtrl.sync();
+    // Synchronously visible at 0ms BEFORE model resolves
+    const instantLocal = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
+    assert.ok(instantLocal);
+    assert.equal(fetchCalls, 1);
+
+    // Model resolves and upgrades in place
+    resolveModel();
+    await new Promise((r) => setTimeout(r, 15));
+    const upgraded = host.children.find((c) => c.id === 'op-prompt-suggest')?.children[0]?.textContent;
+    assert.equal(upgraded, '快模型升级后的精准建议');
+  } finally {
+    hybridCtrl.dispose();
+    globalThis.document = prevDoc;
+    globalThis.window = prevWin;
+  }
+});
+
 function makeTempDir() {
   return mkdtempSync(join(tmpdir(), 'dsh-op-test-'));
 }
@@ -255,6 +1214,41 @@ test('built client.js loads cleanly via window.__ModuleLoader__', () => {
   });
   assert.equal(typeof plugin.apply, 'function');
   assert.deepEqual(Array.from(plugin.inject), ['slots']);
+  const listeners = new Map();
+  const root = new EventTarget();
+  sandbox.window.addEventListener = root.addEventListener.bind(root);
+  sandbox.window.removeEventListener = root.removeEventListener.bind(root);
+  sandbox.localStorage = { getItem: () => '{"enabled":false,"themeMode":"dark"}' };
+  const element = {
+    setAttribute() {},
+    removeAttribute() {},
+    getAttribute: () => null,
+    style: { setProperty() {}, removeProperty() {} },
+  };
+  sandbox.document = {
+    documentElement: element,
+    body: { prepend() {}, appendChild() {} },
+    createElement: () => ({ ...element, remove() {} }),
+    querySelector: () => null,
+    querySelectorAll: () => [],
+    getElementById: () => null,
+    addEventListener(type, listener) { listeners.set(listener, type); },
+    removeEventListener(_type, listener) { listeners.delete(listener); },
+  };
+  sandbox.MutationObserver = class { observe() {} disconnect() {} };
+  sandbox.requestAnimationFrame = () => 1;
+  sandbox.cancelAnimationFrame = () => {};
+  sandbox.setTimeout = () => 1;
+  sandbox.clearTimeout = () => {};
+  sandbox.setInterval = () => 1;
+  sandbox.clearInterval = () => {};
+  const context = { inject() {}, slots: { inject() {} }, effect(run, label) {
+    if (label === 'dsh-obsidian-prism: runtime') this.stop = run();
+  } };
+  plugin.apply(context);
+  assert.ok([...listeners.values()].includes('contextmenu'));
+  context.stop();
+  assert.ok(![...listeners.values()].includes('contextmenu'));
   assert.match(code, /createRippleController/);
   assert.match(code, /mountBrandHorizonGlow/);
   assert.match(code, /createSelectionAskController/);
@@ -1161,4 +2155,142 @@ test('magpie group order follows magpie listing', async () => {
   const { displayGroups } = buildModelPickerCatalog([{ id: 'magpie', name: 'Magpie', models: [
     { id: 'kiro/a' }, { id: 'codex/b' }, { id: 'aws-quick/c' } ] }], { zh: true, magpieOrder: ['aws-quick', 'kiro', 'codex'] });
   assert.deepEqual(displayGroups.map((g) => g.name), ['AWS Quick', 'Kiro', 'Codex']);
+});
+
+test('prism rim aligns to composer card border-box and superellipse corner-shape without arcTo drift', async () => {
+  const { computePrismRimLayout } = await import('../src/prism-rim-controller.js');
+  const rimSrc = readFileSync(new URL('../src/prism-rim-controller.js', import.meta.url), 'utf8');
+  const css = buildStylesheet();
+
+  // Guard: never draw circular canvas arcTo paths that diverge from CSS corner-shape: superellipse(1.5)
+  assert.doesNotMatch(rimSrc, /\barcTo\s*\(/, 'prism-rim-controller must clip via CSS mask shell, not canvas arcTo()');
+
+  // Guard: CSS mask shell inherits corner-shape and excludes content-box like ::before
+  assert.match(css, /\.op-prism-rim-shell\s*\{[^}]*corner-shape:\s*inherit;[^}]*mask-composite:\s*exclude;/s);
+  assert.match(css, /\[data-composer-card\]::before\s*\{[^}]*corner-shape:\s*inherit;/s);
+
+  // Guard: composer card keeps --op-radius-card and border: 0 even alongside dsh-usage-rings (.ur-row)
+  assert.match(css, /html\[data-op-enabled="1"\] \[data-composer-card\]:has\(\+ \[data-composer-dock\] \.ur-row\)\s*\{[^}]*border:\s*0;[^}]*border-radius:\s*var\(--op-radius-card\);/s);
+
+  // Guard: completion pulse on [data-composer-card] must not clobber border-radius with --op-radius-sm
+  const cardPulseRule = css.match(/html\[data-op-enabled="1"\]\[data-op-choreography="1"\]\[data-op-complete-pulse="1"\] \[data-composer-card\]\s*\{([^}]*)\}/);
+  assert.ok(cardPulseRule, 'expected dedicated complete-pulse rule for [data-composer-card]');
+  assert.doesNotMatch(cardPulseRule[1], /border-radius\s*:/, 'complete-pulse on [data-composer-card] must not override border-radius');
+
+  // Layout math: borderless superellipse card (soft 20px)
+  const softLayout = computePrismRimLayout({
+    borderTopWidth: '0px',
+    borderRightWidth: '0px',
+    borderBottomWidth: '0px',
+    borderLeftWidth: '0px',
+    borderTopLeftRadius: '20px',
+    borderTopRightRadius: '20px',
+    borderBottomRightRadius: '20px',
+    borderBottomLeftRadius: '20px',
+    cornerShape: 'superellipse(1.5)',
+  }, 1.75);
+  assert.equal(softLayout.top, '-1.5px');
+  assert.equal(softLayout.left, '-1.5px');
+  assert.equal(softLayout.borderTopLeftRadius, '21.5px');
+  assert.equal(softLayout.cornerShape, 'superellipse(1.5)');
+
+  // Layout math: card with 1px border still aligns to outer border-box edge
+  const borderedLayout = computePrismRimLayout({
+    borderTopWidth: '1px',
+    borderRightWidth: '1px',
+    borderBottomWidth: '1px',
+    borderLeftWidth: '1px',
+    borderTopLeftRadius: '16px',
+    borderTopRightRadius: '16px',
+    borderBottomRightRadius: '16px',
+    borderBottomLeftRadius: '0px',
+    cornerShape: 'superellipse(1.5)',
+  }, 2.1);
+  assert.equal(borderedLayout.top, '-2.5px');
+  assert.equal(borderedLayout.left, '-2.5px');
+  assert.equal(borderedLayout.padding, '2.1px');
+  assert.equal(borderedLayout.borderTopLeftRadius, '17.5px');
+  assert.equal(borderedLayout.borderBottomLeftRadius, '0px');
+});
+
+test('all circular and pill stylesheet rules opt out of global superellipse with corner-shape: round', () => {
+  const css = buildStylesheet();
+  const blocks = css.match(/[^{}]+\{[^{}]+\}/g) || [];
+  const offending = [];
+  for (const block of blocks) {
+    if (/border-radius:\s*(?:50%|999px|var\(--op-radius-pill[^)]*\))\s*;/.test(block)) {
+      if (!/corner-shape:\s*round\s*;/.test(block)) {
+        offending.push(block.split('{')[0].trim());
+      }
+    }
+  }
+  assert.deepEqual(
+    offending,
+    [],
+    `Full-round/pill CSS rules must include "corner-shape: round;" so DSH superellipse(1.5) does not square them: ${offending.join(', ')}`
+  );
+});
+
+test('main composer lookup ignores sidebar side-question cards across controllers', async () => {
+  const { findMainComposerCard, findComposerInput } = await import('../src/selection-ask-controller.js');
+
+  const makeCard = (id, { sidebar = false, hidden = false } = {}) => {
+    const editor = {
+      id: `${id}-editor`,
+      closest(sel) {
+        if (sidebar && sel.includes('.op-side-question')) return { className: 'op-side-question' };
+        return null;
+      },
+    };
+    return {
+      id,
+      hidden,
+      closest(sel) {
+        if (sidebar && (sel.includes('.op-side-question') || sel.includes('[data-sidebar-right-session]'))) {
+          return { className: 'op-side-question' };
+        }
+        if (hidden && sel.includes('[hidden]')) return { hidden: true };
+        return null;
+      },
+      querySelector(sel) {
+        return sel.includes('contenteditable') ? editor : null;
+      },
+      _editor: editor,
+    };
+  };
+
+  const sidebarCard = makeCard('sidebar', { sidebar: true });
+  const hiddenCard = makeCard('hidden', { hidden: true });
+  const mainCard = makeCard('main');
+  const fakeDoc = {
+    querySelectorAll(sel) {
+      if (sel === '[data-composer-card]') return [sidebarCard, hiddenCard, mainCard];
+      return [];
+    },
+    querySelector(sel) {
+      if (sel === '[data-composer-card]') return sidebarCard;
+      return sidebarCard._editor;
+    },
+  };
+
+  assert.equal(findMainComposerCard(fakeDoc), mainCard);
+  assert.equal(findComposerInput(fakeDoc), mainCard._editor);
+
+  // If only a sidebar card exists, never hijack it as the main composer card
+  const sidebarOnlyDoc = {
+    querySelectorAll(sel) {
+      return sel === '[data-composer-card]' ? [sidebarCard] : [];
+    },
+    querySelector(sel) {
+      return sel === '[data-composer-card]' ? sidebarCard : sidebarCard._editor;
+    },
+  };
+  assert.equal(findMainComposerCard(sidebarOnlyDoc), null);
+  assert.equal(findComposerInput(sidebarOnlyDoc), null);
+
+  // Guard: mascot and prism-rim must route through findMainComposerCard instead of raw document.querySelector
+  const mascotSrc = readFileSync(new URL('../src/mascot-controller.js', import.meta.url), 'utf8');
+  const rimSrc = readFileSync(new URL('../src/prism-rim-controller.js', import.meta.url), 'utf8');
+  assert.doesNotMatch(mascotSrc, /document\.querySelector\(\s*['"]\[data-composer-card\]['"]\s*\)/);
+  assert.doesNotMatch(rimSrc, /document\.querySelector\(\s*['"]\[data-composer-card\]['"]\s*\)/);
 });

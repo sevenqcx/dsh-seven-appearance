@@ -21,20 +21,38 @@ export function formatSelectionQuote(rawText, mode = 'quote', zh = true) {
   return `${quoted}\n\n`;
 }
 
+const COMPOSER_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+
+export function findMainComposerCard(doc = document) {
+  if (!doc) return null;
+  const isMainVisible = (el) =>
+    Boolean(el && !el.hidden && !el.closest?.(COMPOSER_SIDEBAR_EXCLUDED) && !el.closest?.('[hidden], [inert]'));
+  if (typeof doc.querySelectorAll === 'function') {
+    const cards = doc.querySelectorAll('[data-composer-card]');
+    for (const card of cards) {
+      if (isMainVisible(card)) return card;
+    }
+    if (cards && cards.length > 0) return null;
+  }
+  const single = doc.querySelector?.('[data-composer-card]') || null;
+  return single && isMainVisible(single) ? single : null;
+}
+
 export function findComposerInput(doc = document) {
   if (!doc) return null;
-  const card = doc.querySelector('[data-composer-card]');
+  const card = findMainComposerCard(doc);
   if (card) {
     const ce = card.querySelector('[contenteditable="true"]');
     if (ce) return ce;
     const ta = card.querySelector('textarea:not([disabled])');
     if (ta) return ta;
   }
-  return (
+  const isMain = (el) => Boolean(el && !el.closest?.(COMPOSER_SIDEBAR_EXCLUDED));
+  const fallback =
     doc.querySelector('[data-composer-card] [contenteditable="true"]') ||
     doc.querySelector('textarea[data-composer-input], textarea:not([disabled]):not(.op-hidden-input)') ||
-    doc.querySelector('[contenteditable="true"]')
-  );
+    doc.querySelector('[contenteditable="true"]');
+  return isMain(fallback) ? fallback : null;
 }
 
 function createSyntheticPasteEvent(text) {
@@ -234,7 +252,7 @@ function getNativeTextSurfaceRect() {
   return null;
 }
 
-export function createSelectionAskController({ getSettings }) {
+export function createSelectionAskController({ getSettings, openSideQuestion }) {
   let pillEl = null;
   let toastEl = null;
   let toastTimer = null;
@@ -242,6 +260,7 @@ export function createSelectionAskController({ getSettings }) {
   let repositionRaf = 0;
   let pointerSelecting = false;
   let activeText = '';
+  let activeSessionId = '';
   let disposed = false;
 
   const EXCLUDE_SELECTOR = [
@@ -252,6 +271,7 @@ export function createSelectionAskController({ getSettings }) {
     '.op-drawer-backdrop',
     '.op-outline-rail',
     '.op-selection-pill',
+    '.op-side-question',
     '.op-status-vial',
     '.op-code-fold-bar',
     '[data-op-ui="1"]',
@@ -290,6 +310,7 @@ export function createSelectionAskController({ getSettings }) {
 
   function hidePill() {
     activeText = '';
+    activeSessionId = '';
     if (repositionRaf) {
       cancelAnimationFrame(repositionRaf);
       repositionRaf = 0;
@@ -323,6 +344,13 @@ export function createSelectionAskController({ getSettings }) {
     // Do not show on hero empty state headline
     if (anchorEl.closest('[data-phase="hero"]') && !anchorEl.closest('[data-chat-flow]')) return null;
 
+    const conversation = anchorEl.closest('[data-conversation-session]');
+    const sessionId =
+      conversation && conversation.contains(focusEl) && !conversation.closest('.op-side-question')
+        ? conversation.getAttribute('data-conversation-session') || ''
+        : '';
+    if (!sessionId) return null;
+
     const rect = getSelectionBoundingRect(range);
     if (!rect || (rect.width === 0 && rect.height === 0)) return null;
 
@@ -330,7 +358,7 @@ export function createSelectionAskController({ getSettings }) {
     const vh = window.innerHeight || 800;
     if (rect.bottom < 0 || rect.top > vh || rect.right < 0 || rect.left > vw) return null;
 
-    return { text, rect };
+    return { text, rect, sessionId };
   }
 
   async function copySelection(text, zh) {
@@ -357,6 +385,7 @@ export function createSelectionAskController({ getSettings }) {
     const s = getSettings();
     const zh = isZhUi(s);
     const text = activeText;
+    const sessionId = activeSessionId;
     if (!text) return;
 
     if (kind === 'copy') {
@@ -365,29 +394,22 @@ export function createSelectionAskController({ getSettings }) {
       return;
     }
 
-    const composer = findComposerInput(document);
-    if (!composer) {
-      showToast(zh ? '未找到输入框' : 'Composer input not found', 'err');
-      hidePill();
+    hidePill();
+    if (!sessionId || typeof openSideQuestion !== 'function') {
+      showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
       return;
     }
-
-    const formatted = formatSelectionQuote(text, kind, zh);
-    const ok = insertTextIntoComposer(composer, formatted);
-    if (ok) {
-      try {
-        window.getSelection?.()?.removeAllRanges?.();
-      } catch {
-        // ignore
-      }
-      showToast(
-        kind === 'explain'
-          ? (zh ? '已填充解释追问到输入框' : 'Inserted explain prompt into composer')
-          : (zh ? '已引用到输入框' : 'Quoted into composer'),
-        'ok',
-      );
-    }
-    hidePill();
+    Promise.resolve(openSideQuestion(sessionId, text, kind, zh))
+      .then(() => {
+        try {
+          window.getSelection?.()?.removeAllRanges?.();
+        } catch {
+          // ignore
+        }
+      })
+      .catch(() => {
+        showToast(zh ? '未能打开侧边追问' : 'Could not open the sidebar question', 'err');
+      });
   }
 
   function positionPill(rect) {
@@ -400,7 +422,7 @@ export function createSelectionAskController({ getSettings }) {
     const gap = 10;
 
     // Respect composer top edge so pill never lands under the composer card
-    const composerCard = document.querySelector('[data-composer-card]');
+    const composerCard = findMainComposerCard(document);
     const composerTop = composerCard ? composerCard.getBoundingClientRect().top : vh;
     const maxBottom = Math.min(vh - 12, composerTop - 8);
 
@@ -445,10 +467,11 @@ export function createSelectionAskController({ getSettings }) {
     pillEl.style.top = `${Math.round(top)}px`;
   }
 
-  function renderPill(text, rect) {
+  function renderPill(text, rect, sessionId) {
     const s = getSettings();
     const zh = isZhUi(s);
     activeText = text;
+    activeSessionId = sessionId;
 
     if (!pillEl || !pillEl.isConnected) {
       pillEl = document.createElement('div');
@@ -469,8 +492,8 @@ export function createSelectionAskController({ getSettings }) {
     pillEl.textContent = '';
 
     const actions = [
-      { id: 'quote', label: zh ? '引用追问' : 'Quote & Ask', primary: true },
-      { id: 'explain', label: zh ? '解释这段' : 'Explain', primary: false },
+      { id: 'quote', label: zh ? '侧边追问' : 'Ask in sidebar', primary: true },
+      { id: 'explain', label: zh ? '侧边解释' : 'Explain', primary: false },
       { id: 'copy', label: zh ? '复制' : 'Copy', primary: false },
     ];
 
@@ -514,7 +537,7 @@ export function createSelectionAskController({ getSettings }) {
       hidePill();
       return;
     }
-    renderPill(eligible.text, eligible.rect);
+    renderPill(eligible.text, eligible.rect, eligible.sessionId);
   }
 
   function scheduleEvaluate(delay = 45) {

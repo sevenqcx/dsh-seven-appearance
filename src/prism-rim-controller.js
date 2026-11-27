@@ -1,4 +1,5 @@
 // Zero-idle-cost GPU 2D Canvas Prism Rim for DSH [data-composer-card]
+import { findMainComposerCard } from './selection-ask-controller.js';
 
 const PRISM_RIM_PALETTES = {
   obsidian: {
@@ -39,8 +40,40 @@ const PRISM_RIM_PALETTES = {
   },
 };
 
+const PRISM_RIM_OUTSET = 1.5;
+
+export function computePrismRimLayout(cs, rimWidth = 1.75) {
+  const num = (v) => {
+    const n = parseFloat(v);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  };
+  const bt = num(cs?.borderTopWidth);
+  const br = num(cs?.borderRightWidth);
+  const bb = num(cs?.borderBottomWidth);
+  const bl = num(cs?.borderLeftWidth);
+  const out = PRISM_RIM_OUTSET;
+  const corner = (raw) => {
+    const r = num(raw);
+    return r > 0 ? `${r + out}px` : '0px';
+  };
+  return {
+    outset: out,
+    top: `${-(bt + out)}px`,
+    right: `${-(br + out)}px`,
+    bottom: `${-(bb + out)}px`,
+    left: `${-(bl + out)}px`,
+    padding: `${rimWidth}px`,
+    borderTopLeftRadius: corner(cs?.borderTopLeftRadius),
+    borderTopRightRadius: corner(cs?.borderTopRightRadius),
+    borderBottomRightRadius: corner(cs?.borderBottomRightRadius),
+    borderBottomLeftRadius: corner(cs?.borderBottomLeftRadius),
+    cornerShape: typeof cs?.cornerShape === 'string' && cs.cornerShape ? cs.cornerShape : '',
+  };
+}
+
 export function createPrismRimController({ getSettings }) {
   let hostCard = null;
+  let shell = null;
   let canvas = null;
   let ctx = null;
   let rafId = 0;
@@ -53,6 +86,7 @@ export function createPrismRimController({ getSettings }) {
   let orbitAngle = 0;
   let completeFlashUntil = 0;
   let lastStreaming = false;
+  let lastLayoutKey = '';
 
   const reducedMq = typeof window !== 'undefined' && window.matchMedia
     ? window.matchMedia('(prefers-reduced-motion: reduce)')
@@ -86,40 +120,60 @@ export function createPrismRimController({ getSettings }) {
       ro.disconnect();
       ro = null;
     }
-    if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    if (shell && shell.parentNode) shell.parentNode.removeChild(shell);
+    else if (canvas && canvas.parentNode) canvas.parentNode.removeChild(canvas);
+    shell = null;
     canvas = null;
     ctx = null;
     hostCard = null;
+    lastLayoutKey = '';
+  }
+
+  function syncShellGeometry(cs, rimWidth) {
+    if (!shell || !cs) return;
+    const layout = computePrismRimLayout(cs, rimWidth);
+    const key = [
+      layout.top, layout.right, layout.bottom, layout.left,
+      layout.padding,
+      layout.borderTopLeftRadius, layout.borderTopRightRadius,
+      layout.borderBottomRightRadius, layout.borderBottomLeftRadius,
+      layout.cornerShape,
+    ].join('|');
+    if (key === lastLayoutKey) return;
+    lastLayoutKey = key;
+    shell.style.top = layout.top;
+    shell.style.right = layout.right;
+    shell.style.bottom = layout.bottom;
+    shell.style.left = layout.left;
+    shell.style.padding = layout.padding;
+    shell.style.borderTopLeftRadius = layout.borderTopLeftRadius;
+    shell.style.borderTopRightRadius = layout.borderTopRightRadius;
+    shell.style.borderBottomRightRadius = layout.borderBottomRightRadius;
+    shell.style.borderBottomLeftRadius = layout.borderBottomLeftRadius;
+    if (layout.cornerShape) {
+      shell.style.cornerShape = layout.cornerShape;
+    } else if (shell.style.cornerShape) {
+      shell.style.cornerShape = '';
+    }
   }
 
   function resizeCanvas() {
     if (!hostCard || !canvas) return;
-    const rect = hostCard.getBoundingClientRect();
+    const rect = (shell && shell.getBoundingClientRect) ? shell.getBoundingClientRect() : hostCard.getBoundingClientRect();
     const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = Math.max(1, Math.round(rect.width + 4));
-    const h = Math.max(1, Math.round(rect.height + 4));
-    const pw = Math.round(w * dpr);
-    const ph = Math.round(h * dpr);
+    const w = Math.max(1, rect.width || (hostCard.getBoundingClientRect().width + PRISM_RIM_OUTSET * 2));
+    const h = Math.max(1, rect.height || (hostCard.getBoundingClientRect().height + PRISM_RIM_OUTSET * 2));
+    const pw = Math.max(1, Math.round(w * dpr));
+    const ph = Math.max(1, Math.round(h * dpr));
     if (canvas.width !== pw || canvas.height !== ph) {
       canvas.width = pw;
       canvas.height = ph;
     }
   }
 
-  function roundedRectPath(c, x, y, w, h, r) {
-    const rr = Math.min(r, w / 2, h / 2);
-    c.beginPath();
-    c.moveTo(x + rr, y);
-    c.arcTo(x + w, y, x + w, y + h, rr);
-    c.arcTo(x + w, y + h, x, y + h, rr);
-    c.arcTo(x, y + h, x, y, rr);
-    c.arcTo(x, y, x + w, y, rr);
-    c.closePath();
-  }
-
   function drawFrame(now) {
     rafId = 0;
-    if (disposed || document.hidden || !isRimActive() || !hostCard || !hostCard.isConnected || !canvas || !ctx) {
+    if (disposed || document.hidden || !isRimActive() || !hostCard || !hostCard.isConnected || !shell || !shell.isConnected || !canvas || !ctx) {
       if (ctx && canvas && canvas.width > 0) ctx.clearRect(0, 0, canvas.width, canvas.height);
       return;
     }
@@ -128,21 +182,23 @@ export function createPrismRimController({ getSettings }) {
     const rect = hostCard.getBoundingClientRect();
     if (rect.width < 20 || rect.height < 20) return;
 
-    resizeCanvas();
-    const dpr = Math.min(window.devicePixelRatio || 1, 2);
-    const w = canvas.width / dpr;
-    const h = canvas.height / dpr;
-    const cs = getComputedStyle(hostCard);
-    const radius = (parseFloat(cs.borderTopLeftRadius) || 18) + 1;
-
     const streaming = document.documentElement.getAttribute('data-op-streaming') === '1';
     const focused = hostCard.contains(document.activeElement);
     const flashRemaining = Math.max(0, completeFlashUntil - now);
     const flashAlpha = flashRemaining > 0 ? Math.sin((flashRemaining / 950) * Math.PI) : 0;
 
+    const rimWidth = flashAlpha > 0.01 ? 2.4 : (streaming || s.ambientGlow === 'rich' ? 2.1 : 1.75);
+    const cs = getComputedStyle(hostCard);
+    syncShellGeometry(cs, rimWidth);
+    resizeCanvas();
+
+    const dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const w = canvas.width / dpr;
+    const h = canvas.height / dpr;
+
     // Proximity to composer card
-    const localX = pointer.x - rect.left + 2;
-    const localY = pointer.y - rect.top + 2;
+    const localX = pointer.x - rect.left + PRISM_RIM_OUTSET;
+    const localY = pointer.y - rect.top + PRISM_RIM_OUTSET;
     const nearX = Math.max(0, rect.left - pointer.x, pointer.x - rect.right);
     const nearY = Math.max(0, rect.top - pointer.y, pointer.y - rect.bottom);
     const dist = Math.hypot(nearX, nearY);
@@ -174,7 +230,7 @@ export function createPrismRimController({ getSettings }) {
     const { colors, isDark } = resolvePaletteColors(s);
     const richBoost = s.ambientGlow === 'rich' ? 1.2 : 0.92;
 
-    // 1. Pointer specular prism hotspot along border
+    // 1. Pointer specular prism hotspot along border (clipped cleanly by .op-prism-rim-shell CSS mask)
     if (proximity > 0.01 || smooth.strength > 0.04) {
       const gx = proximity > 0.01 ? smooth.x : w * 0.5;
       const gy = proximity > 0.01 ? smooth.y : 0;
@@ -187,10 +243,8 @@ export function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = Math.min(0.92, smooth.strength * (isDark ? 0.75 : 0.62) * richBoost);
-      ctx.lineWidth = s.ambientGlow === 'rich' ? 2.1 : 1.5;
-      ctx.strokeStyle = rad;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = rad;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -208,10 +262,8 @@ export function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = isDark ? 0.82 : 0.68;
-      ctx.lineWidth = 2.2;
-      ctx.strokeStyle = sweep;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = sweep;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -226,10 +278,8 @@ export function createPrismRimController({ getSettings }) {
 
       ctx.save();
       ctx.globalAlpha = flashAlpha * (isDark ? 0.85 : 0.72);
-      ctx.lineWidth = 2.4;
-      ctx.strokeStyle = glint;
-      roundedRectPath(ctx, 1.5, 1.5, w - 3, h - 3, radius);
-      ctx.stroke();
+      ctx.fillStyle = glint;
+      ctx.fillRect(0, 0, w, h);
       ctx.restore();
     }
 
@@ -257,23 +307,32 @@ export function createPrismRimController({ getSettings }) {
       unmount();
       return;
     }
-    const card = document.querySelector('[data-composer-card]');
+    const card = findMainComposerCard(document);
     if (!card || !card.isConnected) {
       unmount();
       return;
     }
-    if (hostCard !== card || !canvas || !canvas.isConnected) {
+    if (hostCard !== card || !shell || !shell.isConnected || !canvas || !canvas.isConnected) {
       unmount();
       hostCard = card;
+      shell = document.createElement('div');
+      shell.className = 'op-prism-rim-shell';
+      shell.setAttribute('data-op-ui', '1');
+      shell.setAttribute('aria-hidden', 'true');
       canvas = document.createElement('canvas');
       canvas.className = 'op-prism-rim-canvas';
       canvas.setAttribute('data-op-ui', '1');
       canvas.setAttribute('aria-hidden', 'true');
-      card.appendChild(canvas);
+      shell.appendChild(canvas);
+      card.appendChild(shell);
       ctx = canvas.getContext('2d');
+      if (typeof getComputedStyle === 'function') {
+        syncShellGeometry(getComputedStyle(card), 1.75);
+      }
       resizeCanvas();
       if (typeof ResizeObserver !== 'undefined') {
         ro = new ResizeObserver(() => {
+          lastLayoutKey = '';
           resizeCanvas();
           kick();
         });
@@ -335,7 +394,12 @@ export function createPrismRimController({ getSettings }) {
   }
 
   function refresh() {
+    lastLayoutKey = '';
     ensureMounted();
+    if (hostCard && shell && typeof getComputedStyle === 'function') {
+      syncShellGeometry(getComputedStyle(hostCard), 1.75);
+      resizeCanvas();
+    }
     kick();
   }
 

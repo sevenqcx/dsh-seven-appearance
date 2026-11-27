@@ -9,6 +9,8 @@ import { createRippleController } from './ripple-controller.js';
 import { createWallpaperController } from './wallpaper-controller.js';
 import { createWorkbenchController } from './workbench-controller.js';
 import { createSelectionAskController } from './selection-ask-controller.js';
+import { createContextMenuController } from './context-menu-controller.js';
+import { openSelectionInSidebar, registerSideQuestion } from './side-question.js';
 import { createPromptSuggestController } from './prompt-suggest-controller.js';
 import { createChoreographyController } from './choreography-controller.js';
 import { createPrismRimController } from './prism-rim-controller.js';
@@ -98,6 +100,15 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
     inject: ['slots'],
     apply(ctx) {
       const store = createSettingsStore();
+      let sideQuestion = null;
+      ctx.inject(['sessions', 'sidebarRight', 'sidebarRightTabs', 'resources', 'conversation'], (scope) => {
+        registerSideQuestion(scope, React, store);
+        scope.effect(() => {
+          const open = (sessionId, text, mode, zh) => openSelectionInSidebar(scope, sessionId, text, mode, zh);
+          sideQuestion = open;
+          return () => { if (sideQuestion === open) sideQuestion = null; };
+        }, 'dsh-obsidian-prism: side question action');
+      });
       const { StudioPanel, FloatingStudioHost } = createStudioComponents({ React, createPortal, store });
       const ObsidianPrismModelPicker = createEffortSliderSlotComponent({ React, createPortal, getCrystalCore, store });
 
@@ -131,7 +142,9 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         const effectsCtrl = createEffectsController({ getSettings });
         const rippleCtrl = createRippleController({ getRippleCore, getSettings });
         const workbenchCtrl = createWorkbenchController({ getSettings });
-        const selectionAskCtrl = createSelectionAskController({ getSettings });
+        const openSideQuestion = (...args) => sideQuestion ? sideQuestion(...args) : Promise.reject(new Error('Sidebar unavailable'));
+        const selectionAskCtrl = createSelectionAskController({ getSettings, openSideQuestion });
+        const contextMenuCtrl = createContextMenuController({ getSettings, openSideQuestion });
         const promptSuggestCtrl = createPromptSuggestController({ getSettings });
         const choreographyCtrl = createChoreographyController({ getSettings });
         const prismRimCtrl = createPrismRimController({ getSettings });
@@ -166,6 +179,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
           mascotCtrl.refresh();
           workbenchCtrl.refresh();
           selectionAskCtrl.refresh();
+          contextMenuCtrl.refresh();
           promptSuggestCtrl.refresh();
           choreographyCtrl.refresh();
           prismRimCtrl.refresh();
@@ -180,6 +194,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         mascotCtrl.start();
         workbenchCtrl.start();
         selectionAskCtrl.start();
+        contextMenuCtrl.start();
         promptSuggestCtrl.start();
         choreographyCtrl.start();
         prismRimCtrl.start();
@@ -222,6 +237,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
           safeDispose(() => prismRimCtrl.dispose());
           safeDispose(() => choreographyCtrl.dispose());
           safeDispose(() => selectionAskCtrl.dispose());
+          safeDispose(() => contextMenuCtrl.dispose());
           safeDispose(() => promptSuggestCtrl.dispose());
           safeDispose(() => workbenchCtrl.dispose());
           safeDispose(() => mascotCtrl.dispose());

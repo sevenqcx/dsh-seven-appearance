@@ -1,16 +1,34 @@
 // Mascot stage controller: bridges Obsidian Prism's dual-mascot-rig onto DSH [data-composer-card]
+import { findMainComposerCard } from './selection-ask-controller.js';
+
+const MASCOT_SIDEBAR_EXCLUDED = '[data-sidebar-right-session], .op-side-question';
+
+function findMainConversationScope(doc) {
+  if (!doc || typeof doc.querySelectorAll !== 'function') return doc;
+  const sessions = doc.querySelectorAll('[data-conversation-session]');
+  for (const el of sessions) {
+    if (!el.closest?.(MASCOT_SIDEBAR_EXCLUDED) && !el.hidden && !el.closest?.('[hidden], [inert]')) {
+      return el;
+    }
+  }
+  return doc;
+}
 
 export function detectStreamingActive(doc = document) {
   if (!doc) return false;
-  if (
-    doc.querySelector(
-      '[data-streaming="true"], [data-chat-running]:not([data-holding]), [data-chat-running="true"], [data-running="true"][data-session-id]'
-    )
-  ) {
+  const scope = findMainConversationScope(doc);
+  const runningSel = '[data-streaming="true"], [data-chat-running]:not([data-holding])';
+  if (typeof scope.querySelectorAll === 'function') {
+    for (const el of scope.querySelectorAll(runningSel)) {
+      if (!el.closest?.(MASCOT_SIDEBAR_EXCLUDED) && !el.hidden && !el.closest?.('[hidden], [inert]')) {
+        return true;
+      }
+    }
+  } else if (scope.querySelector?.(runningSel)) {
     return true;
   }
-  const card = doc.querySelector('[data-composer-card]');
-  if (card) {
+  const card = scope.querySelector?.('[data-composer-card]') || findMainComposerCard(doc);
+  if (card && !card.closest?.(MASCOT_SIDEBAR_EXCLUDED)) {
     if (card.querySelector('[data-sending], button[aria-busy="true"]')) {
       return true;
     }
@@ -243,7 +261,7 @@ export function createMascotController({ getRig, getSettings, onStreamingChange 
     const rigApi = getRig();
     if (!rigApi || typeof rigApi.mountDualMascotStage !== 'function') return;
 
-    const card = document.querySelector('[data-composer-card]');
+    const card = findMainComposerCard(document);
     if (!card || !card.isConnected) {
       unmountRig();
       return;
@@ -320,7 +338,16 @@ export function createMascotController({ getRig, getSettings, onStreamingChange 
         childList: true,
         subtree: true,
         attributes: true,
-        attributeFilter: ['data-chat-running', 'data-holding', 'data-streaming', 'data-sending', 'aria-busy', 'hidden', 'aria-expanded'],
+        attributeFilter: [
+          'data-chat-running',
+          'data-holding',
+          'data-streaming',
+          'data-sending',
+          'aria-busy',
+          'hidden',
+          'aria-expanded',
+          'data-conversation-session',
+        ],
       });
     }
     pollTimer = setInterval(() => {

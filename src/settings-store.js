@@ -51,6 +51,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   wallpaperSurfaceGlass: true,
   selectionAskEnabled: true,
   promptSuggestEnabled: true,
+  promptSuggestModel: '',
   codeFoldEnabled: true,
   codeFoldThreshold: 24,
   turnOutlineEnabled: true,
@@ -264,6 +265,9 @@ export function sanitizeSettings(raw) {
     wallpaperSurfaceGlass: typeof src.wallpaperSurfaceGlass === 'boolean' ? src.wallpaperSurfaceGlass : d.wallpaperSurfaceGlass,
     selectionAskEnabled: typeof src.selectionAskEnabled === 'boolean' ? src.selectionAskEnabled : d.selectionAskEnabled,
     promptSuggestEnabled: typeof src.promptSuggestEnabled === 'boolean' ? src.promptSuggestEnabled : d.promptSuggestEnabled,
+    promptSuggestModel: typeof src.promptSuggestModel === 'string' && src.promptSuggestModel.trim().length <= 160
+      ? src.promptSuggestModel.trim()
+      : d.promptSuggestModel,
     codeFoldEnabled: typeof src.codeFoldEnabled === 'boolean' ? src.codeFoldEnabled : d.codeFoldEnabled,
     codeFoldThreshold: Math.round(clampNum(src.codeFoldThreshold, 12, 80, d.codeFoldThreshold)),
     turnOutlineEnabled: typeof src.turnOutlineEnabled === 'boolean' ? src.turnOutlineEnabled : d.turnOutlineEnabled,

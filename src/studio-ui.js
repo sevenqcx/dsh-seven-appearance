@@ -98,10 +98,15 @@ const COPY = {
     secMascot: '像素伙伴舞台',
     mascotHint: '驻留在输入框上沿，可拖拽、互动，回复时会进入工作动画（含 Deepy 像素鲸鱼）',
     secWallpaper: '日常效率工作台与本地壁纸',
-    selectionAsk: '划词快捷追问浮条',
-    selectionAskSub: '选中对话中任意文字，一键引用追问、请求解释或复制，不打断阅读',
+    selectionAsk: '划词追问',
+    selectionAskSub: '选中对话文字后，通过浮条或右键在右侧栏追问、解释或复制；按住 Shift 右键可打开系统菜单',
     promptSuggest: '下一步提示词推荐',
-    promptSuggestSub: '回复结束后在输入框上方给出一条接着问的建议，点一下或按 Tab 填入',
+    promptSuggestSub: '回复结束立刻给出半透明建议（本地零延迟兜底，联网快模型无感升级），Tab 填入、Shift+Tab 换一条',
+    promptSuggestModel: '推荐生成方式',
+    promptSuggestModelSub: '默认自动选最快的轻量模型，也可切到「纯本地」完全不调用模型',
+    promptSuggestModelDefault: '自动（最快轻量模型）',
+    promptSuggestModelLocal: '纯本地（零延迟，不调模型）',
+    promptSuggestModelLoading: '加载模型列表…',
     uploadWp: '上传图片 / 视频壁纸',
     uploading: '上传中…',
     clearWp: '清除当前壁纸',
@@ -177,10 +182,15 @@ const COPY = {
     secMascot: 'Pixel Mascot Stage',
     mascotHint: 'Interactive pixel companions perched above the composer (including Deepy whale)',
     secWallpaper: 'Productivity Workbench & Wallpaper',
-    selectionAsk: 'Selection Quick-Ask Bar',
-    selectionAskSub: 'Highlight any reply snippet to quote & ask, explain, or copy instantly',
+    selectionAsk: 'Selection Quick-Ask',
+    selectionAskSub: 'Select conversation text to ask, explain in the sidebar, or copy via the floating bar or right-click menu. Hold Shift for the system menu.',
     promptSuggest: 'Next-Prompt Suggestion',
-    promptSuggestSub: 'After a reply, suggest one follow-up above the composer; click or press Tab to use it',
+    promptSuggestSub: 'Instant translucent follow-up inside the empty composer (0ms local + fast model upgrade); Tab to accept, Shift+Tab to cycle',
+    promptSuggestModel: 'Suggestion Engine',
+    promptSuggestModelSub: 'Auto picks the fastest lightweight model, or choose Local Only for zero model calls',
+    promptSuggestModelDefault: 'Auto (fastest lightweight model)',
+    promptSuggestModelLocal: 'Local only (0ms instant, no model)',
+    promptSuggestModelLoading: 'Loading models…',
     uploadWp: 'Upload Image / Video',
     uploading: 'Uploading…',
     clearWp: 'Clear Wallpaper',
@@ -269,6 +279,8 @@ export function createStudioComponents({ React, createPortal, store }) {
     const zh = isZhUi(s);
     const t = zh ? COPY.zh : COPY.en;
     const [wallpapers, setWallpapers] = useState([]);
+    const [suggestModels, setSuggestModels] = useState([]);
+    const [suggestModelsLoaded, setSuggestModelsLoaded] = useState(false);
     const [uploading, setUploading] = useState(false);
     const [uploadErr, setUploadErr] = useState('');
     const [backupStatus, setBackupStatus] = useState(null);
@@ -331,8 +343,24 @@ export function createStudioComponents({ React, createPortal, store }) {
       }
     }
 
+    async function loadSuggestModels() {
+      try {
+        const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json && Array.isArray(json.models)) {
+          setSuggestModels(json.models);
+        }
+      } catch {
+        // ignore if host endpoint unavailable
+      } finally {
+        setSuggestModelsLoaded(true);
+      }
+    }
+
     useEffect(() => {
       loadWallpapers();
+      loadSuggestModels();
     }, []);
 
     async function handleFileSelect(ev) {
@@ -666,6 +694,25 @@ export function createStudioComponents({ React, createPortal, store }) {
           checked: s.promptSuggestEnabled,
           onChange: (v) => store.set({ promptSuggestEnabled: v }),
         }),
+        s.promptSuggestEnabled ? h('div', { className: 'op-row' },
+          h('div', { className: 'op-row-label' },
+            h('strong', null, t.promptSuggestModel),
+            h('span', null, t.promptSuggestModelSub),
+          ),
+          h('select', {
+            className: 'op-select',
+            'aria-label': t.promptSuggestModel,
+            value: s.promptSuggestModel || '',
+            onChange: (ev) => store.set({ promptSuggestModel: ev.target.value }),
+          },
+            h('option', { value: '' }, !suggestModelsLoaded && !suggestModels.length ? t.promptSuggestModelLoading : t.promptSuggestModelDefault),
+            h('option', { value: 'local' }, t.promptSuggestModelLocal),
+            s.promptSuggestModel && s.promptSuggestModel !== 'local' && !suggestModels.some((m) => m.id === s.promptSuggestModel)
+              ? h('option', { value: s.promptSuggestModel }, s.promptSuggestModel)
+              : null,
+            suggestModels.map((m) => h('option', { key: m.id, value: m.id }, m.label && m.label !== m.id ? `${m.label} (${m.id})` : m.id)),
+          ),
+        ) : null,
         h(ToggleRow, {
           label: t.turnOutline,
           sub: t.turnOutlineSub,
