@@ -10,7 +10,7 @@
 
 <a href="docs/promo/seven-appearance-promo.mp4"><img src="docs/promo/seven-appearance-promo.gif" alt="Seven Appearance promo" width="100%"></a>
 
-<sub>10-second tour · <a href="docs/promo/seven-appearance-promo.mp4">HD MP4</a> · <a href="README.md">中文</a></sub>
+<sub>24-second tour · <a href="docs/promo/seven-appearance-promo.mp4">HD MP4</a> · <a href="README.md">中文</a></sub>
 
 | 🎨 4 themes | ✨ Prism glow | 💡 Next-prompt suggestions | 🧭 Unified model picker | 🐳 Pixel mascots |
 | :---: | :---: | :---: | :---: | :---: |

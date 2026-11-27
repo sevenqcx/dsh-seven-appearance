@@ -10,7 +10,7 @@
 
 <a href="docs/promo/seven-appearance-promo.mp4"><img src="docs/promo/seven-appearance-promo.gif" alt="Seven 外观宣传动图" width="100%"></a>
 
-<sub>10 秒速览 · <a href="docs/promo/seven-appearance-promo.mp4">高清 MP4</a> · <a href="README.en.md">English</a></sub>
+<sub>24 秒速览 · <a href="docs/promo/seven-appearance-promo.mp4">高清 MP4</a> · <a href="README.en.md">English</a></sub>
 
 | 🎨 四套深浅主题 | ✨ 棱镜边光 | 💡 下一步提示词推荐 | 🧭 统一模型选择器 | 🐳 像素伙伴 |
 | :---: | :---: | :---: | :---: | :---: |
