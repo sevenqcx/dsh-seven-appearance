@@ -2951,5 +2951,21 @@ html[data-op-effective-theme="light"] .op-effort-knob {
     display: none !important;
   }
 }
+
+/* ── Next-prompt suggestion chip ───────────────────────────────────────── */
+.op-prompt-suggest {
+  display: flex; align-items: center; gap: 8px; max-width: min(640px, 100%);
+  margin: 0 auto 8px; padding: 6px 10px 6px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--op-accent, #7a93f8) 35%, transparent);
+  background: color-mix(in srgb, var(--op-accent, #7a93f8) 9%, var(--dsw-alias-bg-layer-1, #111));
+  color: var(--dsw-alias-label-primary, inherit); font-size: 12.5px; line-height: 1.4;
+  cursor: pointer; text-align: left; animation: op-suggest-in .22s ease-out;
+}
+.op-prompt-suggest:hover { border-color: color-mix(in srgb, var(--op-accent, #7a93f8) 60%, transparent); }
+.op-prompt-suggest-label { flex: none; font-size: 11px; opacity: .7; color: var(--op-accent, #7a93f8); }
+.op-prompt-suggest-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-prompt-suggest kbd { flex: none; font: 10.5px/1 ui-monospace, monospace; padding: 3px 5px; border-radius: 4px; opacity: .6;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+@keyframes op-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 `;
 }

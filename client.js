@@ -9349,6 +9349,7 @@ const DEFAULT_SETTINGS = Object.freeze({
   wallpaperBlur: 4,
   wallpaperSurfaceGlass: true,
   selectionAskEnabled: true,
+  promptSuggestEnabled: true,
   codeFoldEnabled: true,
   codeFoldThreshold: 24,
   turnOutlineEnabled: true,
@@ -9561,6 +9562,7 @@ function sanitizeSettings(raw) {
     wallpaperBlur: Math.round(clampNum(src.wallpaperBlur, 0, 24, d.wallpaperBlur)),
     wallpaperSurfaceGlass: typeof src.wallpaperSurfaceGlass === 'boolean' ? src.wallpaperSurfaceGlass : d.wallpaperSurfaceGlass,
     selectionAskEnabled: typeof src.selectionAskEnabled === 'boolean' ? src.selectionAskEnabled : d.selectionAskEnabled,
+    promptSuggestEnabled: typeof src.promptSuggestEnabled === 'boolean' ? src.promptSuggestEnabled : d.promptSuggestEnabled,
     codeFoldEnabled: typeof src.codeFoldEnabled === 'boolean' ? src.codeFoldEnabled : d.codeFoldEnabled,
     codeFoldThreshold: Math.round(clampNum(src.codeFoldThreshold, 12, 80, d.codeFoldThreshold)),
     turnOutlineEnabled: typeof src.turnOutlineEnabled === 'boolean' ? src.turnOutlineEnabled : d.turnOutlineEnabled,
@@ -12614,6 +12616,22 @@ html[data-op-effective-theme="light"] .op-effort-knob {
     display: none !important;
   }
 }
+
+/* ── Next-prompt suggestion chip ───────────────────────────────────────── */
+.op-prompt-suggest {
+  display: flex; align-items: center; gap: 8px; max-width: min(640px, 100%);
+  margin: 0 auto 8px; padding: 6px 10px 6px 8px; border-radius: 999px;
+  border: 1px solid color-mix(in srgb, var(--op-accent, #7a93f8) 35%, transparent);
+  background: color-mix(in srgb, var(--op-accent, #7a93f8) 9%, var(--dsw-alias-bg-layer-1, #111));
+  color: var(--dsw-alias-label-primary, inherit); font-size: 12.5px; line-height: 1.4;
+  cursor: pointer; text-align: left; animation: op-suggest-in .22s ease-out;
+}
+.op-prompt-suggest:hover { border-color: color-mix(in srgb, var(--op-accent, #7a93f8) 60%, transparent); }
+.op-prompt-suggest-label { flex: none; font-size: 11px; opacity: .7; color: var(--op-accent, #7a93f8); }
+.op-prompt-suggest-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.op-prompt-suggest kbd { flex: none; font: 10.5px/1 ui-monospace, monospace; padding: 3px 5px; border-radius: 4px; opacity: .6;
+  border: 1px solid color-mix(in srgb, currentColor 25%, transparent); }
+@keyframes op-suggest-in { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
 `;
 }
 
@@ -15726,6 +15744,152 @@ function createSelectionAskController({ getSettings }) {
   }
 
   return { start, refresh, dispose };
+}
+
+// ── src/prompt-suggest-controller.js ──────────────────────────────────────────
+// Next-prompt suggestion for dsh-obsidian-prism.
+// After the main conversation finishes a reply, ask Magpie (via the plugin
+// host route) for one likely next prompt and show it as a chip above the
+// composer. Click or Tab (with an empty composer) inserts it; typing hides it.
+
+
+const CHIP_ID = 'op-prompt-suggest';
+const MAX_CTX = 2400;
+
+function textOf(el) {
+  return String(el?.innerText || el?.textContent || '').replace(/\s+\n/g, '\n').trim();
+}
+
+function collectTurnContext(doc = document) {
+  const pick = (sel) => {
+    const list = doc.querySelectorAll(sel);
+    return list.length ? list[list.length - 1] : null;
+  };
+  const user = pick('[data-message-role="user"], [data-role="user"], [data-turn-role="user"], [data-author="user"]');
+  const assistant = pick('[data-message-role="assistant"], [data-role="assistant"], [data-turn-role="assistant"], [data-author="assistant"]');
+  const u = textOf(user).slice(-MAX_CTX / 3);
+  const a = textOf(assistant).slice(-MAX_CTX);
+  if (!a) return null;
+  return { user: u, assistant: a, sig: `${u.length}:${a.length}:${a.slice(-40)}` };
+}
+
+function composerIsEmpty(input) {
+  if (!input) return false;
+  const v = input.tagName === 'TEXTAREA' ? input.value : input.textContent;
+  return !String(v || '').replace(/\u200B/g, '').trim();
+}
+
+function createPromptSuggestController({ getSettings }) {
+  let lastSig = '';
+  let reqSeq = 0;
+  let suggestion = '';
+  let onKey = null;
+  let onInput = null;
+
+  const enabled = () => {
+    const s = getSettings();
+    return Boolean(s.enabled && s.promptSuggestEnabled);
+  };
+
+  function hide() {
+    suggestion = '';
+    document.getElementById(CHIP_ID)?.remove();
+  }
+
+  function accept() {
+    if (!suggestion) return false;
+    const input = findComposerInput(document);
+    const text = suggestion;
+    hide();
+    return insertTextIntoComposer(input, text);
+  }
+
+  function show(text) {
+    const input = findComposerInput(document);
+    const card = input?.closest('[data-composer-card]') || input?.parentElement;
+    if (!card || !composerIsEmpty(input)) return;
+    suggestion = text;
+    let chip = document.getElementById(CHIP_ID);
+    if (!chip) {
+      chip = document.createElement('button');
+      chip.id = CHIP_ID;
+      chip.type = 'button';
+      chip.className = 'op-prompt-suggest';
+      chip.setAttribute('translate', 'no');
+      chip.addEventListener('mousedown', (ev) => ev.preventDefault());
+      chip.addEventListener('click', () => accept());
+      card.parentElement?.insertBefore(chip, card);
+    }
+    const zh = isZhUi(getSettings());
+    chip.title = zh ? '点击或按 Tab 使用这条建议' : 'Click or press Tab to use';
+    chip.textContent = '';
+    const label = document.createElement('span');
+    label.className = 'op-prompt-suggest-label';
+    label.textContent = zh ? '下一步' : 'Next';
+    const body = document.createElement('span');
+    body.className = 'op-prompt-suggest-text';
+    body.textContent = text;
+    const key = document.createElement('kbd');
+    key.textContent = 'Tab';
+    chip.append(label, body, key);
+  }
+
+  async function request() {
+    const ctx = collectTurnContext(document);
+    if (!ctx || ctx.sig === lastSig) return;
+    lastSig = ctx.sig;
+    const seq = ++reqSeq;
+    try {
+      const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ user: ctx.user, assistant: ctx.assistant, zh: isZhUi(getSettings()) }),
+      });
+      const j = await res.json();
+      if (seq !== reqSeq || !enabled()) return;
+      if (j?.ok && typeof j.text === 'string' && j.text.trim()) show(j.text.trim());
+    } catch { /* suggestion is optional */ }
+  }
+
+  function notifyStreamingChange(streaming) {
+    if (streaming) { reqSeq += 1; hide(); return; }
+    if (enabled()) setTimeout(() => { if (enabled()) request(); }, 800);
+  }
+
+  function attach() {
+    if (onKey) return;
+    onKey = (ev) => {
+      if (!suggestion || ev.key !== 'Tab' || ev.shiftKey || ev.altKey || ev.metaKey || ev.ctrlKey) return;
+      const input = findComposerInput(document);
+      if (!input || !input.contains(ev.target) && ev.target !== input) return;
+      if (!composerIsEmpty(input)) return;
+      ev.preventDefault();
+      ev.stopPropagation();
+      accept();
+    };
+    onInput = (ev) => {
+      if (!suggestion) return;
+      const input = findComposerInput(document);
+      if (input && (input === ev.target || input.contains(ev.target)) && !composerIsEmpty(input)) hide();
+    };
+    document.addEventListener('keydown', onKey, true);
+    document.addEventListener('input', onInput, true);
+  }
+
+  function detach() {
+    if (onKey) document.removeEventListener('keydown', onKey, true);
+    if (onInput) document.removeEventListener('input', onInput, true);
+    onKey = null;
+    onInput = null;
+    hide();
+  }
+
+  function refresh() {
+    if (enabled()) attach();
+    else detach();
+  }
+
+  return { start: refresh, refresh, notifyStreamingChange, dispose: detach };
 }
 
 // ── src/choreography-controller.js ──────────────────────────────────────────
@@ -19910,6 +20074,8 @@ const COPY = {
     secWallpaper: '日常效率工作台与本地壁纸',
     selectionAsk: '划词快捷追问浮条',
     selectionAskSub: '选中对话中任意文字，一键引用追问、请求解释或复制，不打断阅读',
+    promptSuggest: '下一步提示词推荐',
+    promptSuggestSub: '回复结束后在输入框上方给出一条接着问的建议，点一下或按 Tab 填入',
     uploadWp: '上传图片 / 视频壁纸',
     uploading: '上传中…',
     clearWp: '清除当前壁纸',
@@ -19987,6 +20153,8 @@ const COPY = {
     secWallpaper: 'Productivity Workbench & Wallpaper',
     selectionAsk: 'Selection Quick-Ask Bar',
     selectionAskSub: 'Highlight any reply snippet to quote & ask, explain, or copy instantly',
+    promptSuggest: 'Next-Prompt Suggestion',
+    promptSuggestSub: 'After a reply, suggest one follow-up above the composer; click or press Tab to use it',
     uploadWp: 'Upload Image / Video',
     uploading: 'Uploading…',
     clearWp: 'Clear Wallpaper',
@@ -20467,6 +20635,12 @@ function createStudioComponents({ React, createPortal, store }) {
           onChange: (v) => store.set({ selectionAskEnabled: v }),
         }),
         h(ToggleRow, {
+          label: t.promptSuggest,
+          sub: t.promptSuggestSub,
+          checked: s.promptSuggestEnabled,
+          onChange: (v) => store.set({ promptSuggestEnabled: v }),
+        }),
+        h(ToggleRow, {
           label: t.turnOutline,
           sub: t.turnOutlineSub,
           checked: s.turnOutlineEnabled,
@@ -20685,6 +20859,7 @@ function createStudioComponents({ React, createPortal, store }) {
 
 
 
+
 function resolveEffectiveTheme(settings) {
   if (settings.themeMode === 'dark') return 'dark';
   if (settings.themeMode === 'light') return 'light';
@@ -20796,6 +20971,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         const rippleCtrl = createRippleController({ getRippleCore, getSettings });
         const workbenchCtrl = createWorkbenchController({ getSettings });
         const selectionAskCtrl = createSelectionAskController({ getSettings });
+        const promptSuggestCtrl = createPromptSuggestController({ getSettings });
         const choreographyCtrl = createChoreographyController({ getSettings });
         const prismRimCtrl = createPrismRimController({ getSettings });
         const statusVialCtrl = createStatusVialController({
@@ -20816,6 +20992,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
             choreographyCtrl.notifyStreamingChange(streaming);
             prismRimCtrl.notifyStreamingChange(streaming);
             statusVialCtrl.notifyStreamingChange(streaming);
+            promptSuggestCtrl.notifyStreamingChange(streaming);
           },
         });
 
@@ -20828,6 +21005,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           mascotCtrl.refresh();
           workbenchCtrl.refresh();
           selectionAskCtrl.refresh();
+          promptSuggestCtrl.refresh();
           choreographyCtrl.refresh();
           prismRimCtrl.refresh();
           statusVialCtrl.refresh();
@@ -20841,6 +21019,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
         mascotCtrl.start();
         workbenchCtrl.start();
         selectionAskCtrl.start();
+        promptSuggestCtrl.start();
         choreographyCtrl.start();
         prismRimCtrl.start();
         statusVialCtrl.start();
@@ -20882,6 +21061,7 @@ function createClientPlugin({ React, createPortal, getRig, getRippleCore, getCry
           safeDispose(() => prismRimCtrl.dispose());
           safeDispose(() => choreographyCtrl.dispose());
           safeDispose(() => selectionAskCtrl.dispose());
+          safeDispose(() => promptSuggestCtrl.dispose());
           safeDispose(() => workbenchCtrl.dispose());
           safeDispose(() => mascotCtrl.dispose());
           safeDispose(() => rippleCtrl.dispose());

@@ -9,6 +9,7 @@ import { createRippleController } from './ripple-controller.js';
 import { createWallpaperController } from './wallpaper-controller.js';
 import { createWorkbenchController } from './workbench-controller.js';
 import { createSelectionAskController } from './selection-ask-controller.js';
+import { createPromptSuggestController } from './prompt-suggest-controller.js';
 import { createChoreographyController } from './choreography-controller.js';
 import { createPrismRimController } from './prism-rim-controller.js';
 import { createStatusVialController } from './status-vial-controller.js';
@@ -131,6 +132,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         const rippleCtrl = createRippleController({ getRippleCore, getSettings });
         const workbenchCtrl = createWorkbenchController({ getSettings });
         const selectionAskCtrl = createSelectionAskController({ getSettings });
+        const promptSuggestCtrl = createPromptSuggestController({ getSettings });
         const choreographyCtrl = createChoreographyController({ getSettings });
         const prismRimCtrl = createPrismRimController({ getSettings });
         const statusVialCtrl = createStatusVialController({
@@ -151,6 +153,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
             choreographyCtrl.notifyStreamingChange(streaming);
             prismRimCtrl.notifyStreamingChange(streaming);
             statusVialCtrl.notifyStreamingChange(streaming);
+            promptSuggestCtrl.notifyStreamingChange(streaming);
           },
         });
 
@@ -163,6 +166,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
           mascotCtrl.refresh();
           workbenchCtrl.refresh();
           selectionAskCtrl.refresh();
+          promptSuggestCtrl.refresh();
           choreographyCtrl.refresh();
           prismRimCtrl.refresh();
           statusVialCtrl.refresh();
@@ -176,6 +180,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
         mascotCtrl.start();
         workbenchCtrl.start();
         selectionAskCtrl.start();
+        promptSuggestCtrl.start();
         choreographyCtrl.start();
         prismRimCtrl.start();
         statusVialCtrl.start();
@@ -217,6 +222,7 @@ export function createClientPlugin({ React, createPortal, getRig, getRippleCore,
           safeDispose(() => prismRimCtrl.dispose());
           safeDispose(() => choreographyCtrl.dispose());
           safeDispose(() => selectionAskCtrl.dispose());
+          safeDispose(() => promptSuggestCtrl.dispose());
           safeDispose(() => workbenchCtrl.dispose());
           safeDispose(() => mascotCtrl.dispose());
           safeDispose(() => rippleCtrl.dispose());

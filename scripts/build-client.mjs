@@ -28,6 +28,7 @@ const modules = [
   'src/wallpaper-controller.js',
   'src/workbench-controller.js',
   'src/selection-ask-controller.js',
+  'src/prompt-suggest-controller.js',
   'src/choreography-controller.js',
   'src/prism-rim-controller.js',
   'src/status-vial-controller.js',
