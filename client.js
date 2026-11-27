@@ -16660,6 +16660,18 @@ function createPromptSuggestController({ getSettings }) {
   let mo = null;
 
   let lastSampleSent = '';
+  let shownAt = 0;
+  let shownModel = '';
+
+  function reportSuggestEvent(kind, extra = {}) {
+    fetch('/api/dsh-obsidian-prism/suggest-event', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ kind, model: shownModel, ...extra }),
+    }).catch(() => {});
+  }
+
+
 
   function rememberHisOwnWords(text) {
     const clean = String(text || '').trim();
@@ -16743,7 +16755,9 @@ function createPromptSuggestController({ getSettings }) {
     return insertTextIntoComposer(input, text);
   }
 
-  function renderGhost(text, sigKey = currentSig) {
+  let shownSig = '';
+
+  function renderGhost(text, sigKey = currentSig, source = 'model') {
     const input = findMainComposerInput(document);
     const host = input?.parentElement;
     if (!input || !host || isComposing || !composerIsEmpty(input)) return false;
@@ -16809,6 +16823,13 @@ function createPromptSuggestController({ getSettings }) {
 
     actions.append(acceptBtn, cycleBtn);
     ghost.append(body, actions);
+
+    if (shownSig !== (sigKey || '')) {
+      shownSig = sigKey || '';
+      shownAt = Date.now();
+      shownModel = getSettings()?.promptSuggestModel || '';
+      reportSuggestEvent('shown', { source: source || 'model' });
+    }
     return true;
   }
 
@@ -17115,6 +17136,7 @@ function createPromptSuggestController({ getSettings }) {
   // Shift+Tab / ↻：先在同一批候选里瞬间切换（不发请求），换完了再去要新的一批
   function cycle() {
     if (!enabled() || loadingNext) return;
+    reportSuggestEvent('cycled');
     const s = getSettings();
     const model = s.promptSuggestModel || '';
     const mainConv = resolveMainConversation(document);
@@ -17313,6 +17335,7 @@ function createPromptSuggestController({ getSettings }) {
   function dismissActiveTurn() {
     const sig = resolveActiveSigKey();
     if (sig) addBoundedSet(dismissedSigs, sig);
+    if (suggestion) reportSuggestEvent('dismissed');
     hide({ dismiss: true });
   }
 

@@ -435,6 +435,7 @@ test('prompt suggestion renders inline ghost inside composer, cycles on Shift+Ta
 
   const bodies = [];
   t.mock.method(globalThis, 'fetch', async (_url, options) => {
+    if (String(_url).includes('/suggest-event')) return Response.json({ ok: true });
     const body = JSON.parse(options.body);
     bodies.push(body);
     if (bodies.length === 1) {
@@ -504,6 +505,7 @@ test('prompt suggestion prefetches during streaming for 0ms instant display and 
   const route = createHostHandlers().find(({ path }) => path.endsWith('/prompt-suggest'));
   let modelFetchCount = 0;
   t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/suggest-event')) return Response.json({ ok: true });
     if (url.endsWith('/models')) {
       modelFetchCount += 1;
       return Response.json({ data: [{ id: 'codex/fast', display_name: 'Fast' }] });
@@ -614,7 +616,8 @@ test('prompt suggestion prefetches during streaming for 0ms instant display and 
   globalThis.clearTimeout = () => { settleFn = null; };
 
   let suggestFetches = 0;
-  t.mock.method(globalThis, 'fetch', async () => {
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/suggest-event')) return Response.json({ ok: true });
     suggestFetches += 1;
     return Response.json({ ok: true, text: '瞬间预取建议' });
   });
@@ -788,6 +791,7 @@ test('prompt suggestion persists across session switch and composer remount unti
 
   let fetchCount = 0;
   t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/suggest-event')) return Response.json({ ok: true });
     if (String(url).includes('/speech-sample')) return Response.json({ ok: true, count: 1 });
     fetchCount += 1;
     return Response.json({ ok: true, text: '持久建议内容' });
@@ -1008,7 +1012,8 @@ test('prompt suggestion shows 0ms local fallback with fast-model upgrade, suppor
 
   let fetchCalls = 0;
   let resolveModel = null;
-  t.mock.method(globalThis, 'fetch', async () => {
+  t.mock.method(globalThis, 'fetch', async (url) => {
+    if (String(url).includes('/suggest-event')) return Response.json({ ok: true });
     fetchCalls += 1;
     return new Promise((resolve) => {
       resolveModel = () => resolve(Response.json({ ok: true, text: '快模型升级后的精准建议' }));
@@ -2452,6 +2457,41 @@ test('prompt-suggest returns three divergent candidates and Shift+Tab cycles the
   assert.deepEqual(res.texts, ['这是什么意思', '会不会影响别的地方', '要花多少钱']);
   assert.equal(res.text, '这是什么意思');
 
+});
+
+test('suggestion effect events are recorded and summarised into accept rate and latency', async (t) => {
+  const { getDataDirs, appendSuggestEvent, summarizeSuggestEvents } = await import('../index.js');
+  const dir = mkdtempSync(join(tmpdir(), 'dsh-op-events-'));
+  try {
+    const dirs = getDataDirs(dir);
+    for (const ev of [
+      { kind: 'shown', model: 'volcengine/doubao-seed-2-0-mini-260428', ms: 480, source: 'model' },
+      { kind: 'accepted', model: 'volcengine/doubao-seed-2-0-mini-260428', ms: 2100 },
+      { kind: 'shown', model: 'volcengine/doubao-seed-2-0-mini-260428', ms: 620, source: 'model' },
+      { kind: 'dismissed', model: 'volcengine/doubao-seed-2-0-mini-260428' },
+      { kind: 'shown', model: 'local', ms: 12, source: 'local' },
+      { kind: 'cycled', model: 'local' },
+      { kind: 'bogus' },
+    ]) {
+      await appendSuggestEvent(dirs, ev);
+    }
+
+    const { createHostHandlers: host } = await import('../index.js');
+    const statsRoute = host(dir).find(({ path }) => path.endsWith('/suggest-stats'));
+    const stats = (await (await statsRoute.fetch(new Request('http://localhost'))).json()).stats;
+    assert.equal(stats.shown, 3);
+    assert.equal(stats.accepted, 1);
+    assert.equal(stats.dismissed, 1);
+    assert.equal(stats.cycled, 1);
+    assert.equal(stats.acceptRate, 50);
+    assert.equal(stats.latency.samples, 3);
+    assert.equal(stats.byModel['volcengine/doubao-seed-2-0-mini-260428'].shown, 2);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+
+  // 没有事件时不该报错，接受率为空
+  assert.equal(summarizeSuggestEvents([]).acceptRate, null);
 });
 
 test('speech samples are stored and fed back into the next suggestion prompt', async (t) => {

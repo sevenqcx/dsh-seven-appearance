@@ -1,5 +1,5 @@
 import { createReadStream, existsSync } from 'node:fs';
-import { mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
+import { appendFile, mkdir, readdir, readFile, stat, unlink, writeFile } from 'node:fs/promises';
 import { homedir } from 'node:os';
 import { extname, join, resolve } from 'node:path';
 import { randomBytes } from 'node:crypto';
@@ -41,6 +41,7 @@ export function getDataDirs(baseDir) {
     wallpapersDir: join(root, 'wallpapers'),
     manifestPath: join(root, 'wallpapers', 'manifest.json'),
     samplesPath: join(root, 'speech-samples.json'),
+    eventsPath: join(root, 'suggest-events.jsonl'),
   };
 }
 
@@ -95,6 +96,69 @@ export async function appendSpeechSample(dirs, text) {
   await ensureDirs(dirs);
   await writeFile(dirs.samplesPath, JSON.stringify(trimmed, null, 2), 'utf8');
   return trimmed;
+}
+
+const MAX_EVENT_LINES = 2000;
+
+// 建议效果的原始事件：出现 / 采纳 / 换一条 / 自己打字放弃
+export async function appendSuggestEvent(dirs, event) {
+  const kind = String(event?.kind || '');
+  if (!['shown', 'accepted', 'cycled', 'dismissed'].includes(kind)) return false;
+  const row = {
+    t: new Date().toISOString(),
+    kind,
+    model: String(event?.model || '').slice(0, 120),
+    ms: Number.isFinite(event?.ms) ? Math.round(event.ms) : null,
+    source: String(event?.source || '').slice(0, 20),
+  };
+  await ensureDirs(dirs);
+  await appendFile(dirs.eventsPath, JSON.stringify(row) + '\n', 'utf8');
+  return true;
+}
+
+export function summarizeSuggestEvents(rows) {
+  const list = Array.isArray(rows) ? rows : [];
+  const count = { shown: 0, accepted: 0, cycled: 0, dismissed: 0 };
+  const latencies = [];
+  const byModel = {};
+  for (const row of list) {
+    if (!row || !count.hasOwnProperty(row.kind)) continue;
+    count[row.kind] += 1;
+    if (row.kind === 'shown' && Number.isFinite(row.ms) && row.ms > 0) latencies.push(row.ms);
+    const key = row.model || 'unknown';
+    if (!byModel[key]) byModel[key] = { shown: 0, accepted: 0 };
+    if (row.kind === 'shown') byModel[key].shown += 1;
+    if (row.kind === 'accepted') byModel[key].accepted += 1;
+  }
+  const decided = count.accepted + count.dismissed;
+  const sorted = [...latencies].sort((a, b) => a - b);
+  return {
+    ...count,
+    acceptRate: decided > 0 ? Math.round((count.accepted / decided) * 1000) / 10 : null,
+    latency: sorted.length
+      ? {
+        p50: sorted[Math.floor(sorted.length * 0.5)],
+        p90: sorted[Math.floor(sorted.length * 0.9)] ?? sorted[sorted.length - 1],
+        samples: sorted.length,
+      }
+      : null,
+    byModel,
+  };
+}
+
+async function readSuggestEvents(dirs) {
+  try {
+    if (!existsSync(dirs.eventsPath)) return [];
+    const raw = await readFile(dirs.eventsPath, 'utf8');
+    const rows = [];
+    for (const line of raw.split('\n')) {
+      if (!line.trim()) continue;
+      try { rows.push(JSON.parse(line)); } catch { /* skip broken line */ }
+    }
+    return rows.slice(-MAX_EVENT_LINES);
+  } catch {
+    return [];
+  }
 }
 
 async function readManifest(dirs) {
@@ -520,6 +584,35 @@ export function createHostHandlers(baseDir) {
           return Response.json({ ok: true, count: samples.length });
         } catch (error) {
           return Response.json({ ok: false, error: error?.message || 'Failed to store sample' }, { status: 400 });
+        }
+      },
+    },
+    {
+      // 建议效果：记录出现／采纳／换一条／放弃，并给出汇总
+      path: '/api/dsh-obsidian-prism/suggest-event',
+      methods: ['POST'],
+      requestBody: 'buffered',
+      async fetch(request) {
+        try {
+          const body = await request.json();
+          const ok = await appendSuggestEvent(dirs, body);
+          return Response.json({ ok });
+        } catch (error) {
+          return Response.json({ ok: false, error: error?.message || 'Failed to store event' }, { status: 400 });
+        }
+      },
+    },
+    {
+      path: '/api/dsh-obsidian-prism/suggest-stats',
+      methods: ['GET'],
+      requestBody: 'buffered',
+      async fetch() {
+        try {
+          const rows = await readSuggestEvents(dirs);
+          const samples = await readSpeechSamples(dirs);
+          return Response.json({ ok: true, stats: summarizeSuggestEvents(rows), speechSamples: samples.length });
+        } catch (error) {
+          return Response.json({ ok: false, error: error?.message || 'Failed to read stats' }, { status: 500 });
         }
       },
     },
