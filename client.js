@@ -21720,6 +21720,9 @@ const COPY = {
     promptSuggestModelDefault: '自动（最快轻量模型）',
     promptSuggestModelLocal: '纯本地（零延迟，不调模型）',
     promptSuggestModelLoading: '加载模型列表…',
+    promptSuggestStats: '最近效果',
+    promptSuggestStatsEmpty: '还没有数据，重启后开始记录',
+    promptSuggestStatsLine: '出现 {shown} 次 · 采纳 {accepted} 次 · 采纳率 {rate} · 出现中位 {p50}ms',
     uploadWp: '上传图片 / 视频壁纸',
     uploading: '上传中…',
     clearWp: '清除当前壁纸',
@@ -21804,6 +21807,9 @@ const COPY = {
     promptSuggestModelDefault: 'Auto (fastest lightweight model)',
     promptSuggestModelLocal: 'Local only (0ms instant, no model)',
     promptSuggestModelLoading: 'Loading models…',
+    promptSuggestStats: 'Recent results',
+    promptSuggestStatsEmpty: 'No data yet — recording starts after a restart',
+    promptSuggestStatsLine: 'Shown {shown} · accepted {accepted} · rate {rate} · median {p50}ms',
     uploadWp: 'Upload Image / Video',
     uploading: 'Uploading…',
     clearWp: 'Clear Wallpaper',
@@ -21894,6 +21900,7 @@ function createStudioComponents({ React, createPortal, store }) {
     const [wallpapers, setWallpapers] = useState([]);
     const [suggestModels, setSuggestModels] = useState([]);
     const [suggestModelsLoaded, setSuggestModelsLoaded] = useState(false);
+    const [suggestStats, setSuggestStats] = useState(null);
     const [uploading, setUploading] = useState(false);
     const [uploadErr, setUploadErr] = useState('');
     const [backupStatus, setBackupStatus] = useState(null);
@@ -21956,6 +21963,17 @@ function createStudioComponents({ React, createPortal, store }) {
       }
     }
 
+    async function loadSuggestStats() {
+      try {
+        const res = await fetch('/api/dsh-obsidian-prism/suggest-stats', { cache: 'no-store' });
+        if (!res.ok) return;
+        const json = await res.json();
+        if (json && json.ok && json.stats) setSuggestStats(json.stats);
+      } catch {
+        // ignore if host endpoint unavailable
+      }
+    }
+
     async function loadSuggestModels() {
       try {
         const res = await fetch('/api/dsh-obsidian-prism/prompt-suggest', { cache: 'no-store' });
@@ -21974,6 +21992,7 @@ function createStudioComponents({ React, createPortal, store }) {
     useEffect(() => {
       loadWallpapers();
       loadSuggestModels();
+      loadSuggestStats();
     }, []);
 
     async function handleFileSelect(ev) {
@@ -22325,6 +22344,15 @@ function createStudioComponents({ React, createPortal, store }) {
               : null,
             suggestModels.map((m) => h('option', { key: m.id, value: m.id }, m.label && m.label !== m.id ? `${m.label} (${m.id})` : m.id)),
           ),
+        ) : null,
+        s.promptSuggestEnabled && suggestStats ? h('div', { className: 'op-row-label' },
+          h('span', null, suggestStats.shown > 0
+            ? t.promptSuggestStatsLine
+              .replace('{shown}', String(suggestStats.shown))
+              .replace('{accepted}', String(suggestStats.accepted))
+              .replace('{rate}', suggestStats.acceptRate === null ? '—' : `${suggestStats.acceptRate}%`)
+              .replace('{p50}', String(suggestStats.latency?.p50 ?? '—'))
+            : t.promptSuggestStatsEmpty),
         ) : null,
         h(ToggleRow, {
           label: t.turnOutline,

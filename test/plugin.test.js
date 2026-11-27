@@ -2494,6 +2494,16 @@ test('suggestion effect events are recorded and summarised into accept rate and 
   assert.equal(summarizeSuggestEvents([]).acceptRate, null);
 });
 
+test('settings panel shows accept rate and latency from the stats endpoint', () => {
+  const ui = readFileSync(new URL('../src/studio-ui.js', import.meta.url), 'utf8');
+  assert.match(ui, /suggest-stats/);
+  assert.match(ui, /promptSuggestStatsLine/);
+  assert.match(ui, /promptSuggestStatsEmpty/);
+  // 文案不能承诺界面上没有的东西
+  const changelog = readFileSync(new URL('../CHANGELOG.md', import.meta.url), 'utf8');
+  assert.match(changelog, /采纳率/);
+});
+
 test('speech samples are stored and fed back into the next suggestion prompt', async (t) => {
   const { getDataDirs, appendSpeechSample, readSpeechSamples } = await import('../index.js');
   const dir = mkdtempSync(join(tmpdir(), 'dsh-op-samples-'));
