@@ -72,7 +72,11 @@ npm i dsh-seven-appearance
 
 <p align="center"><img src="docs/promo/code.jpg" width="100%" alt="Long code folding"></p>
 
-<sub>Rendered mockups using the plugin's real palettes and effects; sample content is fictional.</sub>
+### 8. One panel for every setting
+
+<p align="center"><img src="docs/promo/settings.jpg" width="100%" alt="Settings panel"></p>
+
+<sub>Palettes, pixel companions and the settings panel are real screenshots (sidebar personal info blurred); other images are mockups using the plugin's real palettes and effects.</sub>
 
 ---
 

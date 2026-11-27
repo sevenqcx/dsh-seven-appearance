@@ -72,7 +72,11 @@ npm i dsh-seven-appearance
 
 <p align="center"><img src="docs/promo/code.jpg" width="100%" alt="长代码自动折叠"></p>
 
-<sub>以上画面按插件真实配色与光效仿制渲染，示例内容为虚构。</sub>
+### 8. 一个面板管全部外观
+
+<p align="center"><img src="docs/promo/settings.jpg" width="100%" alt="设置面板"></p>
+
+<sub>配色、像素伙伴与设置面板为实机截图（已模糊侧栏个人信息），其余画面按插件真实配色与光效仿制渲染。</sub>
 
 ---
 
