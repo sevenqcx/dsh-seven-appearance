@@ -60,6 +60,18 @@ npm i dsh-seven-appearance
 
 <p align="center"><img src="docs/promo/pets.jpg" width="100%" alt="像素伙伴舞台"></p>
 
+### 5. 会话大纲
+
+<p align="center"><img src="docs/promo/outline.jpg" width="100%" alt="会话大纲"></p>
+
+### 6. 就地解释
+
+<p align="center"><img src="docs/promo/explain.jpg" width="100%" alt="就地解释"></p>
+
+### 7. 长代码自动折叠
+
+<p align="center"><img src="docs/promo/code.jpg" width="100%" alt="长代码自动折叠"></p>
+
 <sub>以上画面按插件真实配色与光效仿制渲染，示例内容为虚构。</sub>
 
 ---

@@ -60,6 +60,18 @@ npm i dsh-seven-appearance
 
 <p align="center"><img src="docs/promo/pets.jpg" width="100%" alt="Pixel companions"></p>
 
+### 5. Session outline
+
+<p align="center"><img src="docs/promo/outline.jpg" width="100%" alt="Session outline"></p>
+
+### 6. Inline explain
+
+<p align="center"><img src="docs/promo/explain.jpg" width="100%" alt="Inline explain"></p>
+
+### 7. Long code folding
+
+<p align="center"><img src="docs/promo/code.jpg" width="100%" alt="Long code folding"></p>
+
 <sub>Rendered mockups using the plugin's real palettes and effects; sample content is fictional.</sub>
 
 ---

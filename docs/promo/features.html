@@ -60,6 +60,31 @@ h2{font-size:46px;font-weight:700;margin-top:12px;background:linear-gradient(180
 .px{display:grid;image-rendering:pixelated}
 .px span{display:block}
 .shelf{width:980px;height:120px;border-radius:26px;background:#12141a;margin-top:-6px}
+/* outline */
+.ol{width:900px;display:flex;gap:26px;align-items:center}
+.ol .ct{flex:1;display:flex;flex-direction:column;gap:14px}
+.ol .bu{align-self:flex-end;max-width:80%;padding:12px 18px;border-radius:18px;background:#1a1d26;border:1px solid #262b38;font-size:16px;color:#d6dceb}
+.ol .ai{font-size:16px;line-height:1.7;color:#aab4ca}
+.ol .pop{width:330px;padding:12px;border-radius:18px;background:#111318;border:1px solid #262b38;box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.ol .ph{display:flex;justify-content:space-between;font-size:13px;color:#7c869c;padding:4px 8px 10px}
+.ol .se{padding:9px 12px;border-radius:10px;background:#0c0e13;border:1px solid #20242f;font-size:14px;color:#5d6679;margin-bottom:8px}
+.ol .it{display:flex;gap:14px;padding:10px 12px;border-radius:10px;font-size:15px;color:#cfd6e4}
+.ol .it.on{background:#1b2336;color:#fff;box-shadow:inset 2px 0 0 #669DF6}
+.ol .it em{font-style:normal;color:#5d6679;font-family:ui-monospace,Menlo,monospace;width:18px}
+/* explain */
+.ex{width:980px;position:relative}
+.ex p{font-size:20px;line-height:1.8;color:#aab4ca}
+.ex mark{background:rgba(102,157,246,.22);color:#fff;border-radius:4px;padding:2px 4px}
+.ex .bx{margin:22px 0 0 120px;width:560px;padding:18px 20px;border-radius:20px;background:#111318;border:1px solid rgba(102,157,246,.35);box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.ex .bh{display:flex;justify-content:space-between;font-size:14px;color:#8fb0ff;margin-bottom:12px}
+.ex .bt{font-size:16px;line-height:1.8;color:#e6e9f0}
+.ex .bi{margin-top:14px;padding:10px 14px;border-radius:12px;background:#0c0e13;border:1px solid #20242f;font-size:14px;color:#6f7a91;display:flex;justify-content:space-between}
+/* code */
+.cb{width:900px;border-radius:20px;overflow:hidden;background:#0f1116;border:1px solid #262b38;box-shadow:0 40px 90px rgba(0,0,0,.6)}
+.cb .hd{display:flex;justify-content:space-between;padding:14px 20px;font:13px ui-monospace,Menlo,monospace;color:#7c869c;border-bottom:1px solid #20242f;background:#12141a}
+.cb pre{margin:0;padding:20px 22px;font:15px/1.9 ui-monospace,Menlo,monospace;color:#cfd6e4}
+.cb pre s{color:#3f4659;text-decoration:none;margin-right:18px}.cb .k{color:#c792ea}.cb .f{color:#82aaff}.cb .n{color:#f78c6c}
+.cb .fd{padding:13px;text-align:center;font-size:14px;color:#7c869c;border-top:1px dashed #262b38;background:linear-gradient(180deg,rgba(102,157,246,.06),transparent)}
 </style></head><body>
 <div class="bg"></div><div class="grid"></div>
 <div class="head"><div class="eb" id="eb"></div><h2 id="h"></h2><div class="ds" id="d"></div></div>
@@ -90,12 +115,33 @@ h2{font-size:46px;font-weight:700;margin-top:12px;background:linear-gradient(180
   </div>
  </div>
  <div class="scene col" id="pets"><div class="pets" id="pw"></div><div class="shelf rim"></div></div>
+<div class="scene" id="outline"><div class="ol"><div class="ct">
+ <div class="bu">登录页要加两步验证，短信和验证器都支持</div>
+ <div class="ai">已改完：登录后先判断是否开启两步验证，老用户会看到一次性引导卡片。</div>
+ <div class="bu">锁定后的提示文案也补一下</div>
+ <div class="ai">好，连错 5 次锁定 10 分钟，提示里会带倒计时。</div></div>
+ <div class="pop"><div class="ph"><span>会话大纲 · 12 轮</span><span class="kb" style="margin:0">⌥⇧O</span></div><div class="se">🔍 搜索关键词…</div>
+ <div class="it"><em>01</em>登录页现状</div><div class="it"><em>02</em>短信与验证器</div><div class="it on"><em>03</em>一次性引导卡片</div><div class="it"><em>04</em>校验与限流</div><div class="it"><em>05</em>锁定提示文案</div><div class="it"><em>06</em>老用户迁移</div></div></div></div>
+ <div class="scene" id="explain"><div class="ex"><p>验证码统一走 verifyOtp()，<mark>短信与验证器共用同一套校验和限流</mark>，后面加规则只改一处。</p>
+ <div class="bx"><div class="bh"><span>◈ 就地解释</span><span style="color:#6f7a91">Esc 关闭</span></div>
+ <div class="bt">不管走短信还是验证器 App，最终都进同一个校验入口，所以「连错 5 次锁 10 分钟」这类规则只写一份，不会两条路各算各的。</div>
+ <div class="bi"><span>接着问：锁定后怎么提示用户？</span><span style="color:#8fb0ff">发送 ⏎</span></div></div></div></div>
+ <div class="scene" id="code"><div class="cb"><div class="hd"><span>login/two-factor.ts · 128 行</span><span>⌄ 收起</span></div>
+<pre><s>1</s><span class="k">export async function</span> <span class="f">verifyOtp</span>(user: User, code: string) {
+<s>2</s>  <span class="k">const</span> record = <span class="k">await</span> store.<span class="f">get</span>(user.id);
+<s>3</s>  <span class="k">if</span> (record.attempts &gt;= <span class="n">5</span>) <span class="k">throw new</span> <span class="f">LockedError</span>(record.lockedUntil);
+<s>4</s>  <span class="k">await</span> store.<span class="f">recordAttempt</span>(user.id);
+<s>5</s>  <span class="k">return</span> record.codes.<span class="f">includes</span>(code);
+<s>6</s>}</pre><div class="fd">已收起其余 122 行 · 点击展开</div></div></div>
 </div>
 <script>
 const S={
  palettes:['PALETTES','四套光学配色','深色黑曜 · 暖炭，浅色晶白 · 暖陶，8 档强调色与 3 档圆角'],
  prism:['PRISM · NEXT PROMPT','棱镜边光 · 下一步提示词','回复一停就给三条方向不同的建议，Tab 填入，⇧Tab 换一条'],
  picker:['MODEL PICKER','统一模型与推理选择器','固定宽度双栏、搜索收藏、离线品牌标识，推理等级一拨就换'],
+ outline:['SESSION OUTLINE','会话大纲','十几轮对话按轮次成目录，搜索或点一下就跳回去'],
+ explain:['INLINE EXPLAIN','就地解释','选中回复里的一句话，原地追问，不打断主线'],
+ code:['CODE FOLD','长代码自动折叠','超长代码块默认收起，只留关键几行，一点即展开'],
  pets:['PIXEL COMPANIONS','像素伙伴舞台','Clawd、小猫、迷你蟹与 Deepy 像素鲸鱼，可拖拽、会干活']};
 const k=new URLSearchParams(location.search).get('s')||'palettes';
 document.getElementById(k).classList.add('on');[eb.textContent,h.textContent,d.textContent]=S[k];
